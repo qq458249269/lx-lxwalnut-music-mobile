@@ -108,9 +108,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.lxnetease.music.mobile"
+    namespace "com.luna.music"
     defaultConfig {
-        applicationId "com.lxnetease.music.mobile"
+        applicationId "com.luna.music"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode verCode
@@ -165,7 +165,9 @@ android {
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
 
-            signingConfig signingConfigs.release
+            if (rootProject.file("keystore.properties").exists()) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 
