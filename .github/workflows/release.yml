@@ -29,10 +29,14 @@ jobs:
         shell: bash
         run: |
           cd android
-          echo ${{ secrets.MYAPP_KEYSTORE_BASE64 }} | base64 --decode > app/${{ secrets.MYAPP_UPLOAD_STORE_FILE }}
           chmod +x ./gradlew
-          ./gradlew assembleRelease -PMYAPP_UPLOAD_STORE_FILE='${{ secrets.MYAPP_UPLOAD_STORE_FILE }}' -PMYAPP_UPLOAD_KEY_ALIAS='${{ secrets.MYAPP_UPLOAD_KEY_ALIAS }}' -PMYAPP_UPLOAD_STORE_PASSWORD='${{ secrets.MYAPP_UPLOAD_STORE_PASSWORD }}' -PMYAPP_UPLOAD_KEY_PASSWORD='${{ secrets.MYAPP_UPLOAD_KEY_PASSWORD }}'
-          rm -f app/${{ secrets.MYAPP_UPLOAD_STORE_FILE }}
+          if [ -n "${{ secrets.MYAPP_KEYSTORE_BASE64 }}" ]; then
+            echo ${{ secrets.MYAPP_KEYSTORE_BASE64 }} | base64 --decode > app/${{ secrets.MYAPP_UPLOAD_STORE_FILE }}
+            ./gradlew assembleRelease -PMYAPP_UPLOAD_STORE_FILE='${{ secrets.MYAPP_UPLOAD_STORE_FILE }}' -PMYAPP_UPLOAD_KEY_ALIAS='${{ secrets.MYAPP_UPLOAD_KEY_ALIAS }}' -PMYAPP_UPLOAD_STORE_PASSWORD='${{ secrets.MYAPP_UPLOAD_STORE_PASSWORD }}' -PMYAPP_UPLOAD_KEY_PASSWORD='${{ secrets.MYAPP_UPLOAD_KEY_PASSWORD }}'
+            rm -f app/${{ secrets.MYAPP_UPLOAD_STORE_FILE }}
+          else
+            ./gradlew assembleRelease
+          fi
 
       - name: Get package version
         id: package_version
@@ -127,10 +131,10 @@ jobs:
           draft: false
           tag_name: ${{ needs.Android.outputs.release_tag }}
           files: |
-            artifacts/lx-netease-music-mobile-v${{ needs.Android.outputs.package_version }}-arm64-v8a.apk
-            artifacts/lx-netease-music-mobile-v${{ needs.Android.outputs.package_version }}-armeabi-v7a.apk
-            artifacts/lx-netease-music-mobile-v${{ needs.Android.outputs.package_version }}-x86_64.apk
-            artifacts/lx-netease-music-mobile-v${{ needs.Android.outputs.package_version }}-x86.apk
-            artifacts/lx-netease-music-mobile-v${{ needs.Android.outputs.package_version }}-universal.apk
+            artifacts/lx-lxwalnut-music-mobile-v${{ needs.Android.outputs.package_version }}-arm64-v8a.apk
+            artifacts/lx-lxwalnut-music-mobile-v${{ needs.Android.outputs.package_version }}-armeabi-v7a.apk
+            artifacts/lx-lxwalnut-music-mobile-v${{ needs.Android.outputs.package_version }}-x86_64.apk
+            artifacts/lx-lxwalnut-music-mobile-v${{ needs.Android.outputs.package_version }}-x86.apk
+            artifacts/lx-lxwalnut-music-mobile-v${{ needs.Android.outputs.package_version }}-universal.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
