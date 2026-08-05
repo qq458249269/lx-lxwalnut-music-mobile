@@ -14,6 +14,7 @@ import com.luna.music.crypto.CryptoPackage;
 import com.luna.music.lyric.LyricPackage;
 import com.luna.music.userApi.UserApiPackage;
 import com.luna.music.utils.UtilsPackage;
+import com.luna.music.visualizer.ProxyPackage;
 import com.luna.music.widget.WidgetPackage;
 
 public class MainApplication extends NavigationApplication {
@@ -36,6 +37,7 @@ public class MainApplication extends NavigationApplication {
           packages.add(new UtilsPackage());
           packages.add(new CryptoPackage());
           packages.add(new UserApiPackage());
+          packages.add(new ProxyPackage());
           packages.add(new WidgetPackage());
           return packages;
         }

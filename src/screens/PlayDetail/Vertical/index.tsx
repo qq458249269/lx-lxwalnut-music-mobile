@@ -1,4 +1,4 @@
-import {memo, useState, useRef, useMemo, useEffect, useCallback} from 'react'
+import {memo, useState, useRef, useEffect, useCallback} from 'react'
 import { View, AppState } from 'react-native'
 
 import Header from './components/Header'
@@ -8,7 +8,7 @@ import MiniLyric from '../components/MiniLyric';
 import Player from './Player'
 import PagerView, { type PagerViewOnPageSelectedEvent } from 'react-native-pager-view'
 import Pic from './Pic'
-import Lyric from './Lyric'
+import VisualizerPlayer from '../Visualizer/VisualizerPlayer'
 import { screenkeepAwake, screenUnkeepAwake } from '@/utils/nativeModules/utils'
 import commonState, { type InitState as CommonState } from '@/store/common/state'
 import { createStyle } from '@/utils/tools'
@@ -16,15 +16,9 @@ import { createStyle } from '@/utils/tools'
 
 const LyricPage = ({ activeIndex }: { activeIndex: number }) => {
   const initedRef = useRef(false)
-  const lyric = useMemo(() => <Lyric />, [])
-  switch (activeIndex) {
-    // case 3:
-    case 1:
-      if (!initedRef.current) initedRef.current = true
-      return lyric
-    default:
-      return initedRef.current ? lyric : null
-  }
+  if (activeIndex === 1) initedRef.current = true
+  if (!initedRef.current) return null
+  return <VisualizerPlayer active={activeIndex === 1} />
   // return activeIndex == 0 || activeIndex == 1 ? setting : null
 }
 

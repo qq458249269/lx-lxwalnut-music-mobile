@@ -1,7 +1,7 @@
 {
   "name": "lx-lxwalnut-music-mobile",
-  "version": "26.07.23",
-  "versionCode": 260723,
+  "version": "26.08.05",
+  "versionCode": 260724,
   "private": true,
   "scripts": {
     "dev": "react-native run-android --active-arch-only",
@@ -27,7 +27,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/WalnutBai/lx-lxwalnut-music-mobile.git"
+    "url": "git+https://github.com/qq458249269/lx-lxwalnut-music-mobile.git"
   },
   "keywords": [
     "music-player",
@@ -39,9 +39,9 @@
   },
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/WalnutBai/lx-lxwalnut-music-mobile/issues"
+    "url": "https://github.com/qq458249269/lx-lxwalnut-music-mobile/issues"
   },
-  "homepage": "https://github.com/WalnutBai/lx-lxwalnut-music-mobile#readme",
+  "homepage": "https://github.com/qq458249269/lx-lxwalnut-music-mobile#readme",
   "dependencies": {
     "@craftzdog/react-native-buffer": "^6.0.5",
     "@d11/react-native-fast-image": "^8.13.0",

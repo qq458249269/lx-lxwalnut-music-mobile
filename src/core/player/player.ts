@@ -382,6 +382,18 @@ export const playList = async (listId: string, index: number) => {
   await handlePlay()
 }
 
+/**
+ * Headless playlist switch - state update only, no TrackPlayer calls
+ * Used by WebViewSyncManager to switch tracks without triggering native audio chain
+ */
+export const playListHeadlessServer = (listId: string, index: number) => {
+  setPlayListId(listId)
+  setPlayMusicInfo(listId, getList(listId)[index])
+  if (settingState.setting['player.isAutoCleanPlayedList'])
+    clearPlayedList()
+  clearTempPlayeList()
+}
+
 const handleToggleStop = async () => {
   await stop()
   setTimeout(() => {

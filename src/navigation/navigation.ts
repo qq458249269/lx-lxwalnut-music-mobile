@@ -6,7 +6,7 @@ import {
   PLAY_DETAIL_SCREEN,
   SONGLIST_DETAIL_SCREEN,
   SIMILAR_SONGS_SCREEN,
-  COMMENT_SCREEN, ARTIST_DETAIL_SCREEN, ALBUM_DETAIL_SCREEN, DOWNLOAD_MANAGER_SCREEN,
+  COMMENT_SCREEN, ARTIST_DETAIL_SCREEN, ALBUM_DETAIL_SCREEN, DOWNLOAD_MANAGER_SCREEN, VISUALIZER_SCREEN,
 } from './screenNames'
 
 import themeState from '@/store/theme/state'
@@ -734,6 +734,35 @@ export function pushDownloadManagerScreen(componentId: string) {
       },
     },
   });
+}
+
+export function pushVisualizerScreen(componentId: string) {
+  return Navigation.push(componentId, {
+    component: {
+      name: VISUALIZER_SCREEN,
+      options: {
+        topBar: {
+          visible: false,
+          height: 0,
+          drawBehind: false,
+        },
+        statusBar: {
+          drawBehind: true,
+          visible: false,
+          style: 'light',
+          backgroundColor: 'transparent',
+        },
+        navigationBar: {
+          visible: false,
+          backgroundColor: '#000',
+        },
+        layout: {
+          componentBackgroundColor: '#000',
+          orientation: ['landscape'],
+        },
+      },
+    },
+  })
 }
 
 
