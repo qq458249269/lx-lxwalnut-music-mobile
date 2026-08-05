@@ -74,10 +74,6 @@ export default memo(() => {
       setWySubscribedPlaylists([])
       return
     }
-    if (playlists.length > 0) {
-      setLoading(false)
-      return
-    }
     setLoading(true)
     wyApi.getUserPlaylists(uid, cookie)
       .then(playlists => {
