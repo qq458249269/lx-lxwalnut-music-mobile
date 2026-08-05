@@ -88,7 +88,7 @@ def jscFlavor = 'org.webkit:android-jsc:+'
  */
 def reactNativeArchitectures() {
     def value = project.getProperties().get("reactNativeArchitectures")
-    return value ? value.split(",") : ["arm64-v8a"]
+    return value ? value.split(",") : ["armeabi-v7a", "x86", "x86_64", "arm64-v8a"]
 }
 
 // Get version number
@@ -108,9 +108,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.luna.music"
+    namespace "com.lxnetease.music.mobile"
     defaultConfig {
-        applicationId "com.luna.music"
+        applicationId "com.lxnetease.music.mobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode verCode
@@ -121,7 +121,7 @@ android {
         abi {
             reset()
             enable enableSeparateBuildPerCPUArchitecture
-            universalApk false
+            universalApk true  // If true, also generate a universal APK
             include (*reactNativeArchitectures())
         }
     }
@@ -158,15 +158,13 @@ android {
             signingConfig signingConfigs.debug
             applicationIdSuffix ".dev"
         }
-        release {
+         release {
             // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
-
-            if (rootProject.file("keystore.properties").exists()) {
-                signingConfig signingConfigs.release
+          }
             }
         }
     }
