@@ -1,11 +1,12 @@
 import { memo, useEffect, useRef } from 'react'
-import { View, StatusBar, BackHandler } from 'react-native'
+import { View, StatusBar, BackHandler, AppState } from 'react-native'
 import { Navigation } from 'react-native-navigation'
 import { setComponentId, removeComponentId } from '@/core/common'
 import { COMPONENT_IDS } from '@/config/constant'
 import { createStyle } from '@/utils/tools'
 import { stop, handlePlay } from '@/core/player/player'
 import { getPosition, setCurrentTime } from '@/plugins/player/utils'
+import { screenkeepAwake, screenUnkeepAwake } from '@/utils/nativeModules/utils'
 import VisualizerPlayer, { type VisualizerPlayerHandle } from './VisualizerPlayer'
 
 export default memo(({ componentId }: { componentId: string }) => {
@@ -16,6 +17,19 @@ export default memo(({ componentId }: { componentId: string }) => {
     setComponentId(COMPONENT_IDS.visualizer, componentId)
     return () => { removeComponentId(componentId) }
   }, [componentId])
+
+  // Web 可视化页保持屏幕常亮，退出时恢复
+  useEffect(() => {
+    screenkeepAwake()
+    const appstateListener = AppState.addEventListener('change', (state) => {
+      if (state === 'active') screenkeepAwake()
+      else if (state === 'background') screenUnkeepAwake()
+    })
+    return () => {
+      appstateListener.remove()
+      screenUnkeepAwake()
+    }
+  }, [])
 
   // Web 可视化整页接管音频：挂载时记录 native 进度并停 RN 播放器
   useEffect(() => {
