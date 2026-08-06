@@ -10,11 +10,13 @@ export function compareVer(currentVer: string, targetVer: string): -1 | 0 | 1 {
   // treat non-numerical characters as lower version
   // replacing them with a negative number based on charcode of each character
   const fix = (s: string) => `.${s.toLowerCase().charCodeAt(0) - 2147483647}.`
+  // 将 -N 数字后缀（如 26.08.08-1）拆为正段（26.08.08.1），使带后缀版本大于无后缀
+  const norm = (s: string) => ('' + s).replace(/-(\d+)$/, '.$1')
 
-  const currentVerArr: Array<string | number> = ('' + currentVer)
+  const currentVerArr: Array<string | number> = norm(currentVer)
     .replace(/[^0-9.]/g, fix)
     .split('.')
-  const targetVerArr: Array<string | number> = ('' + targetVer).replace(/[^0-9.]/g, fix).split('.')
+  const targetVerArr: Array<string | number> = norm(targetVer).replace(/[^0-9.]/g, fix).split('.')
   let c = Math.max(currentVerArr.length, targetVerArr.length)
   for (let i = 0; i < c; i++) {
     // convert to integer the most efficient way

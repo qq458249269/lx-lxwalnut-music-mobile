@@ -58,14 +58,17 @@ jobs:
         run: |
           BASE_TAG="v${PACKAGE_VERSION}"
           if gh release view "${BASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-            RELEASE_TAG="${BASE_TAG}-test.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
-            RELEASE_NAME="${BASE_TAG} test ${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
-            RELEASE_PRERELEASE="true"
+            # 同日已有版本,找最大 -N 后缀并递增（不过滤 pre-release，因为全部是 pre-release）
+            N=$(gh release list --repo "${GITHUB_REPOSITORY}" 2>/dev/null | grep -oE "v${PACKAGE_VERSION}-[0-9]+" | sed 's/.*-//' | sort -n | tail -1 || echo 0)
+            N=${N:-0}
+            RELEASE_TAG="${BASE_TAG}-$((N+1))"
+            RELEASE_NAME="${BASE_TAG}-$((N+1))"
           else
             RELEASE_TAG="${BASE_TAG}"
             RELEASE_NAME="${BASE_TAG}"
-            RELEASE_PRERELEASE="false"
           fi
+          # 始终以 pre-Release 发布,后续手动改为正式 Release
+          RELEASE_PRERELEASE="true"
 
           echo "RELEASE_TAG=${RELEASE_TAG}" >> "$GITHUB_ENV"
           echo "RELEASE_NAME=${RELEASE_NAME}" >> "$GITHUB_ENV"
@@ -116,8 +119,8 @@ jobs:
       - name: Generate release body
         run: |
           awk 'BEGIN{RS="---"}{if(NR==1)print $0}' ./publish/changeLog.md > RELEASE_NOTES.md
-          if [ "${{ needs.Android.outputs.release_prerelease }}" = "true" ]; then
-            echo -e '\n### Test Build\nThis prerelease was generated because release `${{ needs.Android.outputs.package_version }}` already exists.\n' >> RELEASE_NOTES.md
+          if [ "${{ needs.Android.outputs.release_tag }}" != "v${{ needs.Android.outputs.package_version }}" ]; then
+            echo -e '\n### Test Build\nThis is a same-day re-release with an incremental suffix (`${{ needs.Android.outputs.release_tag }}`), published as a prerelease.\n' >> RELEASE_NOTES.md
           fi
           echo -e '\n### File MD5\n```' >> RELEASE_NOTES.md
           cd artifacts

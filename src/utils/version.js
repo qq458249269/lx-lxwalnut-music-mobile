@@ -95,7 +95,9 @@ let apkSavePath
 
 export const downloadNewVersion = async (version, onDownload = noop) => {
   const abi = await getTargetAbi()
-  const url = `https://github.com/${owner}/${name}/releases/download/v${version}/${name}-v${version}-${abi}.apk`
+  // 同日重发版本带 -N 后缀，tag 用完整版本、APK 附件名用主版本（package.json 无后缀）
+  const [mainVer] = String(version).split('-')
+  const url = `https://github.com/${owner}/${name}/releases/download/v${version}/${name}-v${mainVer}-${abi}.apk`
   let savePath = temporaryDirectoryPath + '/lx-netease-music-mobile.apk'
 
   if (downloadJobId) stopDownload(downloadJobId)
