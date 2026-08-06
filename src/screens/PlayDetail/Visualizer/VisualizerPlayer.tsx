@@ -3,12 +3,11 @@ import { View, StyleSheet } from 'react-native'
 import { WebView, type WebViewMessageEvent } from 'react-native-webview'
 import { usePlayMusicInfo } from '@/store/player/hook'
 import { createStyle } from '@/utils/tools'
-import { stop, handlePlay } from '@/core/player/player'
 import { WebViewSyncManager } from './WebViewSyncManager'
 
 const WEBVIEW_ASSETS = 'file:///android_asset/sonic-topography/index.html'
 
-export default memo(({ style, active }: { style?: object, active?: boolean }) => {
+export default memo(({ style }: { style?: object }) => {
   const webViewRef = useRef<WebView>(null)
   const syncRef = useRef<WebViewSyncManager | null>(null)
   const [ready, setReady] = useState(false)
@@ -26,26 +25,6 @@ export default memo(({ style, active }: { style?: object, active?: boolean }) =>
       syncRef.current = null
     }
   }, [])
-
-  const isActive = active ?? true
-  const activeRef = useRef(isActive)
-  activeRef.current = isActive
-
-  useEffect(() => {
-    // active 为真时 WebView 接管音频（停 RN 播放器），为假时恢复 RN 播放器
-    if (isActive) {
-      void stop()
-    } else {
-      try {
-        webViewRef.current?.injectJavaScript('window.pauseAudio&&window.pauseAudio()')
-      } catch {}
-      void handlePlay()
-    }
-    return () => {
-      // 组件卸载时若仍处于接管状态，恢复 RN 播放器
-      if (activeRef.current) void handlePlay()
-    }
-  }, [isActive])
 
   useEffect(() => {
     if (!ready || !jsReady) return

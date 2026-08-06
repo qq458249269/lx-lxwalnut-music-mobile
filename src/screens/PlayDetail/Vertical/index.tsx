@@ -7,8 +7,8 @@ import Header from './components/Header'
 import MiniLyric from '../components/MiniLyric';
 import Player from './Player'
 import PagerView, { type PagerViewOnPageSelectedEvent } from 'react-native-pager-view'
+import Lyric from './Lyric'
 import Pic from './Pic'
-import VisualizerPlayer from '../Visualizer/VisualizerPlayer'
 import { screenkeepAwake, screenUnkeepAwake } from '@/utils/nativeModules/utils'
 import commonState, { type InitState as CommonState } from '@/store/common/state'
 import { createStyle } from '@/utils/tools'
@@ -18,7 +18,7 @@ const LyricPage = ({ activeIndex }: { activeIndex: number }) => {
   const initedRef = useRef(false)
   if (activeIndex === 1) initedRef.current = true
   if (!initedRef.current) return null
-  return <VisualizerPlayer active={activeIndex === 1} />
+  return <Lyric />
   // return activeIndex == 0 || activeIndex == 1 ? setting : null
 }
 

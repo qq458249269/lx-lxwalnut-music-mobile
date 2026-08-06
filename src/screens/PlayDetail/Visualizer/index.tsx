@@ -4,6 +4,7 @@ import { Navigation } from 'react-native-navigation'
 import { setComponentId, removeComponentId } from '@/core/common'
 import { COMPONENT_IDS } from '@/config/constant'
 import { createStyle } from '@/utils/tools'
+import { stop, handlePlay } from '@/core/player/player'
 import VisualizerPlayer from './VisualizerPlayer'
 
 export default memo(({ componentId }: { componentId: string }) => {
@@ -11,6 +12,12 @@ export default memo(({ componentId }: { componentId: string }) => {
     setComponentId(COMPONENT_IDS.visualizer, componentId)
     return () => { removeComponentId(componentId) }
   }, [componentId])
+
+  // Web 可视化整页接管音频：挂载时停 RN 播放器，卸载时恢复
+  useEffect(() => {
+    void stop()
+    return () => { void handlePlay() }
+  }, [])
 
   useEffect(() => {
     const onBackPress = () => {
