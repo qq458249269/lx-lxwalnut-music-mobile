@@ -65,6 +65,8 @@ export class WebViewSyncManager {
     const listId = playerState.playMusicInfo?.listId
     const item = this.playlist[newIndex]
     if (!listId || !item) return
+    // 切歌时清空进入时的续播进度，新歌从 0 开始（避免沿用旧曲进度）
+    global.lx.visualizerResumePos = 0
     this.lastDispatchedId = ''
     this.markSwitchStart(item.id)
     try {
