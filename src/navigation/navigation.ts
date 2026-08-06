@@ -747,7 +747,7 @@ export function pushVisualizerScreen(componentId: string) {
           drawBehind: false,
         },
         statusBar: {
-          drawBehind: false,
+          drawBehind: true,
           visible: false,
           style: 'light',
           backgroundColor: 'transparent',

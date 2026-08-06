@@ -6,12 +6,10 @@ import { COMPONENT_IDS } from '@/config/constant'
 import { createStyle } from '@/utils/tools'
 import { stop, handlePlay } from '@/core/player/player'
 import { getPosition, setCurrentTime } from '@/plugins/player/utils'
-import { useStatusbarHeight } from '@/store/common/hook'
 import VisualizerPlayer, { type VisualizerPlayerHandle } from './VisualizerPlayer'
 
 export default memo(({ componentId }: { componentId: string }) => {
   const playerRef = useRef<VisualizerPlayerHandle>(null)
-  const statusBarHeight = useStatusbarHeight()
   const resumePosRef = useRef(0)
 
   useEffect(() => {
@@ -69,7 +67,7 @@ export default memo(({ componentId }: { componentId: string }) => {
   }, [componentId])
 
   return (
-    <View style={[s.root, { paddingTop: statusBarHeight }]}>
+    <View style={s.root}>
       <StatusBar hidden />
       <VisualizerPlayer ref={playerRef} />
     </View>
