@@ -8,8 +8,8 @@ import { WebViewSyncManager } from './WebViewSyncManager'
 const WEBVIEW_ASSETS = 'file:///android_asset/sonic-topography/index.html'
 
 export interface VisualizerPlayerHandle {
-  /** 立即停掉 WebView 音频并上报进度 */
-  stop: () => void
+  /** 立即停掉 WebView 音频并上报进度，onStop 回调返回 WebView 最终播放进度(秒) */
+  stop: (onStop?: (pos: number) => void) => void
 }
 
 const VisualizerPlayer = memo(forwardRef<VisualizerPlayerHandle, { style?: object }>(({ style }, ref) => {
@@ -21,11 +21,28 @@ const VisualizerPlayer = memo(forwardRef<VisualizerPlayerHandle, { style?: objec
   const lastTrackRef = useRef('')
 
   useImperativeHandle(ref, () => ({
-    stop: () => {
+    stop: (onStop?: (pos: number) => void) => {
       try {
+        // 先注入 pauseAudio 触发 WebView 的 pause 事件 → 上报 playbackState(currentTime)
+        // 再注入 reportPosition 同步读 audioElement.currentTime 上报
         webViewRef.current?.injectJavaScript('window.pauseAudio&&window.pauseAudio()')
         syncRef.current?.reportPosition()
       } catch {}
+      if (onStop) {
+        // reportedPosition 经 postMessage 异步回传，等待其到达（或回退到 lastPosition）
+        let done = false
+        const check = () => {
+          if (done) return
+          done = true
+          onStop(global.lx.visualizerLastPos || syncRef.current?.getCurrentPosition() || 0)
+        }
+        // 先试 reportPosition 的消息(快速)，等 150ms；再兜底用 lastPosition
+        setTimeout(() => {
+          const pos = global.lx.visualizerLastPos
+          if (pos > 0) { done = true; onStop(pos); return }
+          check()
+        }, 200)
+      }
     },
   }), [])
 

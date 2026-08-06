@@ -47,21 +47,21 @@ export default memo(({ componentId }: { componentId: string }) => {
 
   useEffect(() => {
     const onBackPress = () => {
-      // 先在 WebView 仍挂载时主动停掉 Web 音频并上报进度，避免卸载时序导致双声
-      playerRef.current?.stop()
-      const pos = global.lx.visualizerLastPos
-      const resumePos = resumePosRef.current
-      global.lx.visualizerResumePos = 0
-      global.lx.visualizerLastPos = 0
-      void (async () => {
-        if (pos > 0 && pos !== resumePos) {
-          try { await setCurrentTime(pos) } catch {}
-        }
-        void handlePlay()
-      })()
+      // 先在 WebView 仍挂载时主动停掉 Web 音频并异步拿回播放进度
+      playerRef.current?.stop((resumePos) => {
+        global.lx.visualizerResumePos = 0
+        global.lx.visualizerLastPos = 0
+        void (async () => {
+          if (resumePos > 0 && resumePos !== resumePosRef.current) {
+            try { await setCurrentTime(resumePos) } catch {}
+          }
+          void handlePlay()
+        })()
+      })
+      // pop 稍后触发，确保组件卸载前 Web 音频已停
       setTimeout(() => {
         Navigation.pop(componentId)
-      }, 50)
+      }, 350)
       return true
     }
     const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress)

@@ -179,6 +179,7 @@ export class WebViewSyncManager {
         url, pic: pMusicInfo.meta?.picUrl || '',
         duration: this.parseInterval(pMusicInfo.interval), album: pMusicInfo.meta?.albumName || '',
         startTime: global.lx.visualizerResumePos || 0,
+        volume: playerState.volume || 1,
         lrc: lrc || '',
       })
       if (list.length > 0) {
