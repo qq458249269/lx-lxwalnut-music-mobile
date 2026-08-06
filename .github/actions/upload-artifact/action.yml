@@ -5,7 +5,7 @@ runs:
   using: composite
   steps:
     - name: Upload Artifact arm64-v8a
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: app-v${{ env.PACKAGE_VERSION }}-arm64-v8a-release
         path: android/app/build/outputs/apk/release/lx-lxwalnut-music-mobile-v${{ env.PACKAGE_VERSION }}-arm64-v8a.apk

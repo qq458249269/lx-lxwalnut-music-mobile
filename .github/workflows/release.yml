@@ -18,13 +18,13 @@ jobs:
       release_prerelease: ${{ steps.release_target.outputs.release_prerelease }}
     steps:
       - name: Check out git repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Env
         uses: ./.github/actions/setup
 
       - name: Cache Metro transform cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .metro-cache
           key: metro-${{ runner.os }}-${{ hashFiles('package-lock.json', 'metro.config.js', 'babel.config.js') }}
@@ -105,10 +105,10 @@ jobs:
       contents: write
     steps:
       - name: Check out git repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: ./artifacts
           merge-multiple: true
@@ -127,7 +127,7 @@ jobs:
           echo -e '\n[软件安装包说明](https://lyswhut.github.io/lx-music-doc/download#%E8%BD%AF%E4%BB%B6%E5%AE%89%E8%A3%85%E5%8C%85%E8%AF%B4%E6%98%8E)\n' >> RELEASE_NOTES.md
 
       - name: Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: ${{ needs.Android.outputs.release_name }}
           body_path: RELEASE_NOTES.md
