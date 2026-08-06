@@ -20,6 +20,8 @@ export default memo(({ style }: { style?: object }) => {
     return () => {
       try {
         webViewRef.current?.injectJavaScript('window.pauseAudio&&window.pauseAudio()')
+        // 卸载前上报 WebView 当前进度,供 native 续播
+        syncRef.current?.reportPosition()
       } catch {}
       syncRef.current?.destroy()
       syncRef.current = null

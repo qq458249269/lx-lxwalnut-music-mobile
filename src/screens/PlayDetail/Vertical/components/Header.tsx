@@ -96,6 +96,7 @@ export default memo(() => {
   const popupRef = useRef<SettingPopupType>(null)
   const landscapeImmersionSettingPopupRef = useRef<LandscapeImmersionSettingPopupType>(null)
   const statusBarHeight = useStatusbarHeight()
+  const theme = useTheme()
   const back = () => {
     void pop(commonState.componentIds[commonState.componentIds.length - 1]?.id!)
   }
@@ -117,8 +118,8 @@ export default memo(() => {
       <View style={styles.container}>
         <Btn icon="chevron-left" onPress={back} />
         <Title />
-        <Btn icon="svg:web-visualizer" onPress={openVisualizer} />
-        <Btn icon="svg:landscape-immersion" onPress={showLandscapeImmersionSetting} />
+        <Btn icon="svg:web-visualizer" color={theme['c-550']} onPress={openVisualizer} />
+        <Btn icon="svg:landscape-immersion" color={theme['c-550']} onPress={showLandscapeImmersionSetting} />
         <TimeoutExitBtn />
         <Btn icon="slider" onPress={showSetting} />
       </View>

@@ -21,6 +21,7 @@ export class WebViewSyncManager {
   private currentIndex = -1
   private playMode: PlayMode = 'listLoop'
   private dispatchLock = false
+  private lastPosition = 0
   private webViewRef: React.RefObject<any>
 
   private static SWITCH_DEBOUNCE_MS = 800
@@ -45,6 +46,17 @@ export class WebViewSyncManager {
   }
 
   private getCurrentUIId() { return (playerState.playMusicInfo as any)?.musicInfo?.id || '' }
+
+  getCurrentPosition() { return this.lastPosition }
+
+  /** 让 WebView 立即回报当前进度到 global.lx.visualizerLastPos */
+  reportPosition() {
+    try {
+      this.webViewRef.current?.injectJavaScript(
+        `var __a=document.querySelector('audio');window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(JSON.stringify({type:'reportedPosition',currentTime:__a?__a.currentTime:0}))`
+      )
+    } catch {}
+  }
 
   private markSwitchStart(id: string) { this.isSwitchingTrack = true; this.lastSwitchTime = Date.now(); this.expectedSongId = id }
   private markSwitchEnd() { this.isSwitchingTrack = false; this.expectedSongId = ''; if (this.pollTimer) { clearTimeout(this.pollTimer); this.pollTimer = null } }
@@ -114,7 +126,13 @@ export class WebViewSyncManager {
       switch (data.type) {
         case 'ready': wb('Msg', 'WebView ready'); this.setReady(true); break
         case 'log': wb('WebView', data.message, data.data); break
-        case 'playbackState': if (!this.isSwitchingTrack && data.ended) this.handleEnded(); break
+        case 'playbackState':
+          this.lastPosition = Number(data.currentTime) || this.lastPosition
+          if (!this.isSwitchingTrack && data.ended) this.handleEnded()
+          break
+        case 'reportedPosition':
+          global.lx.visualizerLastPos = Number(data.currentTime) || 0
+          break
         case 'prev': { if (this.canSwitchTrack()) { const i = this.getNextIndex('prev'); if (i >= 0) this.switchToTrack(i) } break }
         case 'next': { if (this.canSwitchTrack()) { const i = this.getNextIndex('next'); if (i >= 0) this.switchToTrack(i) } break }
         case 'playFromList': if (data.index != null && this.canSwitchTrack()) this.switchToTrack(data.index); break
@@ -160,6 +178,7 @@ export class WebViewSyncManager {
         id: uiId, title: pMusicInfo.name || '', singer: pMusicInfo.singer || '',
         url, pic: pMusicInfo.meta?.picUrl || '',
         duration: this.parseInterval(pMusicInfo.interval), album: pMusicInfo.meta?.albumName || '',
+        startTime: global.lx.visualizerResumePos || 0,
         lrc: lrc || '',
       })
       if (list.length > 0) {

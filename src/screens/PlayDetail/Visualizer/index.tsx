@@ -5,6 +5,7 @@ import { setComponentId, removeComponentId } from '@/core/common'
 import { COMPONENT_IDS } from '@/config/constant'
 import { createStyle } from '@/utils/tools'
 import { stop, handlePlay } from '@/core/player/player'
+import { getPosition, setCurrentTime } from '@/plugins/player/utils'
 import VisualizerPlayer from './VisualizerPlayer'
 
 export default memo(({ componentId }: { componentId: string }) => {
@@ -13,10 +14,27 @@ export default memo(({ componentId }: { componentId: string }) => {
     return () => { removeComponentId(componentId) }
   }, [componentId])
 
-  // Web 可视化整页接管音频：挂载时停 RN 播放器，卸载时恢复
+  // Web 可视化整页接管音频：挂载时记录 native 进度并停 RN 播放器，卸载时续播
   useEffect(() => {
-    void stop()
-    return () => { void handlePlay() }
+    void (async () => {
+      try {
+        global.lx.visualizerResumePos = await getPosition()
+      } catch {
+        global.lx.visualizerResumePos = 0
+      }
+      void stop()
+    })()
+    return () => {
+      const pos = global.lx.visualizerLastPos
+      global.lx.visualizerResumePos = 0
+      global.lx.visualizerLastPos = 0
+      void (async () => {
+        if (pos > 0) {
+          try { await setCurrentTime(pos) } catch {}
+        }
+        void handlePlay()
+      })()
+    }
   }, [])
 
   useEffect(() => {
