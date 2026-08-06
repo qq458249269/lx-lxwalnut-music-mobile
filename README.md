@@ -3,9 +3,9 @@
 <h1 align="center">LX-X Music 移动版</h1>
 
 <p align="center">
-  <a href="https://github.com/WalnutBai/lx-lxwalnut-music-mobile/releases"><img src="https://img.shields.io/github/release/WalnutBai/lx-lxwalnut-music-mobile" alt="Release version"></a>
-  <a href="https://github.com/WalnutBai/lx-lxwalnut-music-mobile/actions/workflows/release.yml"><img src="https://github.com/WalnutBai/lx-lxwalnut-music-mobile/workflows/Build/badge.svg" alt="Build status"></a>
-  <a href="https://github.com/facebook/react-native"><img src="https://img.shields.io/github/package-json/dependency-version/WalnutBai/lx-lxwalnut-music-mobile/react-native/master" alt="React native version"></a>
+  <a href="https://github.com/qq458249269/lx-lxwalnut-music-mobile/releases"><img src="https://img.shields.io/github/release/qq458249269/lx-lxwalnut-music-mobile" alt="Release version"></a>
+  <a href="https://github.com/qq458249269/lx-lxwalnut-music-mobile/actions/workflows/release.yml"><img src="https://github.com/qq458249269/lx-lxwalnut-music-mobile/workflows/Build/badge.svg" alt="Build status"></a>
+  <a href="https://github.com/facebook/react-native"><img src="https://img.shields.io/github/package-json/dependency-version/qq458249269/lx-lxwalnut-music-mobile/react-native/master" alt="React native version"></a>
 </p>
 
 <p align="center">一个基于 React Native 开发的音乐软件</p>

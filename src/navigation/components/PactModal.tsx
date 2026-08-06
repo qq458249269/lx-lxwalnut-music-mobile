@@ -13,12 +13,23 @@ import { updateSetting } from '@/core/common'
 import { checkUpdate } from '@/core/version'
 import { initDeeplink } from '@/core/init/deeplink'
 import settingState from '@/store/setting/state'
+import { repository } from '../../../package.json'
+
+// 从 repository.url 派生实际仓库首页（git+https://github.com/<owner>/<repo>.git）
+const repoUrl = (() => {
+  try {
+    const match = String(repository?.url || '').match(/github\.com\/([^/]+\/[^/]+)/)
+    return match ? `https://github.com/${match[1]}` : 'https://github.com/souvenp/lx-netease-music-mobile'
+  } catch {
+    return 'https://github.com/souvenp/lx-netease-music-mobile'
+  }
+})()
 
 const Content = () => {
   const theme = useTheme()
 
   const openHomePage = () => {
-    void openUrl('https://github.com/souvenp/lx-netease-music-mobile#readme')
+    void openUrl(repoUrl + '#readme')
   }
   const openLicensePage = () => {
     void openUrl('http://www.apache.org/licenses/LICENSE-2.0')
@@ -152,7 +163,7 @@ const Footer = ({ componentId }: { componentId: string }) => {
   const theme = useTheme()
   const isAgreePact = useSettingValue('common.isAgreePact')
   // const checkUpdate = useDispatch('common', 'checkUpdate')
-  const [time, setTime] = useState(5)
+  const [time, setTime] = useState(3)
 
   const handleRejct = () => {
     exitApp()

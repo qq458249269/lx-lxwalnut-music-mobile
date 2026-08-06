@@ -7,12 +7,23 @@ import { createStyle, openUrl } from '@/utils/tools'
 import { useTheme } from '@/store/theme/hook'
 import { useI18n } from '@/lang'
 import Text from '@/components/common/Text'
+import { repository } from '../../../../../package.json'
+
+// 从 repository.url 派生实际仓库首页（git+https://github.com/<owner>/<repo>.git）
+const repoUrl = (() => {
+  try {
+    const match = String(repository?.url || '').match(/github\.com\/([^/]+\/[^/]+)/)
+    return match ? `https://github.com/${match[1]}` : 'https://github.com/souvenp/lx-netease-music-mobile'
+  } catch {
+    return 'https://github.com/souvenp/lx-netease-music-mobile'
+  }
+})()
 
 export default memo(() => {
   const theme = useTheme()
   const t = useI18n()
   const openHomePage = () => {
-    void openUrl('https://github.com/souvenp/lx-netease-music-mobile#readme')
+    void openUrl(repoUrl + '#readme')
   }
 
   const textLinkStyle = {
@@ -26,7 +37,7 @@ export default memo(() => {
       <View style={styles.part}>
         <Text style={styles.text}>本软件(LX-Netease Music简称LX-N Music)完全免费，代码已开源。开源地址：</Text>
         <TouchableOpacity onPress={openHomePage}>
-          <Text style={textLinkStyle}>https://github.com/souvenp/lx-netease-music-mobile</Text>
+          <Text style={textLinkStyle}>{repoUrl}</Text>
         </TouchableOpacity>
       </View>
       <View style={styles.part}>
