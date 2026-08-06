@@ -36,7 +36,8 @@ module.exports = async (newVerNum) => {
   version.version = newVerNum
   version.desc = newMDChangeLog.replace(/(?:^|(\n))#{1,6} (.+)\n/g, '$1$2').trim()
   pkg.version = newVerNum
-  pkg.versionCode = pkg.versionCode + 1
+  // versionCode 由 version（YY.MM.DD）推导，单一来源；同日重复发版 code 相同（覆盖安装）
+  pkg.versionCode = parseInt(newVerNum.replace(/\./g, ''))
 
   console.log(chalk.blue('new version: ') + chalk.green(newVerNum))
 
