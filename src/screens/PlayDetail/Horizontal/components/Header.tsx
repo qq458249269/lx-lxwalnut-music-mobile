@@ -113,7 +113,7 @@ export default memo(() => {
         </TouchableOpacity>
         <Title />
         <TouchableOpacity style={{ ...styles.button, width: HEADER_HEIGHT }} onPress={openVisualizer}>
-          <SvgIcon name="web-visualizer" size={18} color={theme['c-550']} />
+          <SvgIcon name="web-visualizer" size={18} color={theme['c-primary']} />
         </TouchableOpacity>
         <DesktopLyricBtn />
         {isOneDrive ? null : <CommentBtn />}

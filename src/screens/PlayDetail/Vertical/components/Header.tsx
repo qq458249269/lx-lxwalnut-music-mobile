@@ -118,8 +118,8 @@ export default memo(() => {
       <View style={styles.container}>
         <Btn icon="chevron-left" onPress={back} />
         <Title />
-        <Btn icon="svg:web-visualizer" color={theme['c-550']} onPress={openVisualizer} />
-        <Btn icon="svg:landscape-immersion" color={theme['c-550']} onPress={showLandscapeImmersionSetting} />
+        <Btn icon="svg:web-visualizer" color={theme['c-primary']} onPress={openVisualizer} />
+        <Btn icon="svg:landscape-immersion" color={theme['c-primary']} onPress={showLandscapeImmersionSetting} />
         <TimeoutExitBtn />
         <Btn icon="slider" onPress={showSetting} />
       </View>
