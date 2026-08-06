@@ -1,5 +1,5 @@
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
-import { View, StyleSheet } from 'react-native'
+import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { View } from 'react-native'
 import { WebView, type WebViewMessageEvent } from 'react-native-webview'
 import { usePlayMusicInfo } from '@/store/player/hook'
 import { createStyle } from '@/utils/tools'
@@ -7,13 +7,27 @@ import { WebViewSyncManager } from './WebViewSyncManager'
 
 const WEBVIEW_ASSETS = 'file:///android_asset/sonic-topography/index.html'
 
-export default memo(({ style }: { style?: object }) => {
+export interface VisualizerPlayerHandle {
+  /** 立即停掉 WebView 音频并上报进度 */
+  stop: () => void
+}
+
+const VisualizerPlayer = memo(forwardRef<VisualizerPlayerHandle, { style?: object }>(({ style }, ref) => {
   const webViewRef = useRef<WebView>(null)
   const syncRef = useRef<WebViewSyncManager | null>(null)
   const [ready, setReady] = useState(false)
   const [jsReady, setJsReady] = useState(false)
   const playMusicInfo = usePlayMusicInfo()
   const lastTrackRef = useRef('')
+
+  useImperativeHandle(ref, () => ({
+    stop: () => {
+      try {
+        webViewRef.current?.injectJavaScript('window.pauseAudio&&window.pauseAudio()')
+        syncRef.current?.reportPosition()
+      } catch {}
+    },
+  }), [])
 
   useEffect(() => {
     syncRef.current = new WebViewSyncManager(webViewRef)
@@ -74,6 +88,8 @@ export default memo(({ style }: { style?: object }) => {
       />
     </View>
   )
-})
+}))
 
 const s = createStyle({ root: { flex: 1, backgroundColor: '#000' }, wv: { flex: 1 } })
+
+export default VisualizerPlayer

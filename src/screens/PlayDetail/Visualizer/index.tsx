@@ -1,4 +1,4 @@
-import { memo, useEffect } from 'react'
+import { memo, useEffect, useRef } from 'react'
 import { View, StatusBar, BackHandler } from 'react-native'
 import { Navigation } from 'react-native-navigation'
 import { setComponentId, removeComponentId } from '@/core/common'
@@ -6,30 +6,38 @@ import { COMPONENT_IDS } from '@/config/constant'
 import { createStyle } from '@/utils/tools'
 import { stop, handlePlay } from '@/core/player/player'
 import { getPosition, setCurrentTime } from '@/plugins/player/utils'
-import VisualizerPlayer from './VisualizerPlayer'
+import { useStatusbarHeight } from '@/store/common/hook'
+import VisualizerPlayer, { type VisualizerPlayerHandle } from './VisualizerPlayer'
 
 export default memo(({ componentId }: { componentId: string }) => {
+  const playerRef = useRef<VisualizerPlayerHandle>(null)
+  const statusBarHeight = useStatusbarHeight()
+  const resumePosRef = useRef(0)
+
   useEffect(() => {
     setComponentId(COMPONENT_IDS.visualizer, componentId)
     return () => { removeComponentId(componentId) }
   }, [componentId])
 
-  // Web 可视化整页接管音频：挂载时记录 native 进度并停 RN 播放器，卸载时续播
+  // Web 可视化整页接管音频：挂载时记录 native 进度并停 RN 播放器
   useEffect(() => {
     void (async () => {
       try {
         global.lx.visualizerResumePos = await getPosition()
+        resumePosRef.current = global.lx.visualizerResumePos
       } catch {
         global.lx.visualizerResumePos = 0
+        resumePosRef.current = 0
       }
       void stop()
     })()
     return () => {
+      // 卸载兜底：若未走 onBackPress（如被其他方式关闭），恢复 native 续播
       const pos = global.lx.visualizerLastPos
       global.lx.visualizerResumePos = 0
       global.lx.visualizerLastPos = 0
       void (async () => {
-        if (pos > 0) {
+        if (pos > 0 && pos !== resumePosRef.current) {
           try { await setCurrentTime(pos) } catch {}
         }
         void handlePlay()
@@ -39,9 +47,21 @@ export default memo(({ componentId }: { componentId: string }) => {
 
   useEffect(() => {
     const onBackPress = () => {
+      // 先在 WebView 仍挂载时主动停掉 Web 音频并上报进度，避免卸载时序导致双声
+      playerRef.current?.stop()
+      const pos = global.lx.visualizerLastPos
+      const resumePos = resumePosRef.current
+      global.lx.visualizerResumePos = 0
+      global.lx.visualizerLastPos = 0
+      void (async () => {
+        if (pos > 0 && pos !== resumePos) {
+          try { await setCurrentTime(pos) } catch {}
+        }
+        void handlePlay()
+      })()
       setTimeout(() => {
         Navigation.pop(componentId)
-      }, 150)
+      }, 50)
       return true
     }
     const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress)
@@ -49,11 +69,11 @@ export default memo(({ componentId }: { componentId: string }) => {
   }, [componentId])
 
   return (
-    <View style={s.root}>
+    <View style={[s.root, { paddingTop: statusBarHeight }]}>
       <StatusBar hidden />
-      <VisualizerPlayer />
+      <VisualizerPlayer ref={playerRef} />
     </View>
   )
 })
 
-const s = createStyle({ root: { flex: 1, backgroundColor: '#000' }, wv: { flex: 1 } })
+const s = createStyle({ root: { flex: 1, backgroundColor: '#000' } })
