@@ -1,4 +1,5 @@
 const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config')
+const path = require('path')
 
 /**
  * Metro configuration
@@ -7,6 +8,8 @@ const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config')
  * @type {import('metro-config').MetroConfig}
  */
 const config = {
+  // 持久化 Metro/Babel 转换缓存到项目目录，供 CI 缓存加速重复构建
+  cacheDirectory: path.join(__dirname, '.metro-cache'),
   resolver: {
     extraNodeModules: {
       // crypto: require.resolve('react-native-quick-crypto'),

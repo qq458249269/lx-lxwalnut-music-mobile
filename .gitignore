@@ -71,3 +71,6 @@ buck-out/
 Walnut.jks
 android/app/Walnut.jks
 lx-netease-music-mobile.zip
+
+# Metro transform cache
+.metro-cache/
