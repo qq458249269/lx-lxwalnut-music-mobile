@@ -217,7 +217,11 @@ public class VisualizerBarView extends View {
   protected void onDraw(Canvas canvas) {
     super.onDraw(canvas);
     if (mAttachFailed) {
-      drawHint(canvas, "无法获取音频频谱" + (mLastError != null ? " (" + mLastError + ")" : ""));
+      // SecurityException ⇒ RECORD_AUDIO 权限未授予/被系统限制（Visualizer(0) 全局捕获硬性依赖该权限）
+      String hint = mLastError != null && mLastError.contains("SecurityException")
+          ? "无法获取音频频谱（无麦克风权限）"
+          : "无法获取音频频谱" + (mLastError != null ? " (" + mLastError + ")" : "") ;
+      drawHint(canvas, hint);
       return;
     }
     if (!mAttached || !mGotData) {
