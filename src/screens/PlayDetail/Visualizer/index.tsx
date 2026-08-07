@@ -98,8 +98,12 @@ export default memo(({ componentId, onExit, embedded = false }: Props) => {
     return () => { cancelled = true }
   }, [])
 
-  // 退出律动页：释放频谱采样（native 播放继续，无人为 stop）
+  // 退出律动页：释放频谱采样（native 播放继续，无人为 stop）。
+  // 幂等：首次退出即置位，防止返回键/退出按钮/系统事件叠加导致需点两次才退出。
+  const exitedRef = useRef(false)
   const handleExit = useCallback(() => {
+    if (exitedRef.current) return
+    exitedRef.current = true
     playerRef.current?.exit()
     setSessionId(-1)
     if (onExit) {
@@ -197,21 +201,33 @@ const s = createStyle({
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    // 背景频谱仍应可见：仅轻微压暗（封面/歌词区自身有半透明背景）
+    backgroundColor: 'rgba(0,0,0,0.2)',
   },
   content: {
     ...StyleSheet.absoluteFillObject,
     flexDirection: 'row',
+    // 整体缩小到中部：封面/歌词不占满屏幕
+    paddingHorizontal: '8%',
+    paddingVertical: '12%',
   },
   left: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
+    alignItems: 'flex-start',
+    // 靠左 + 半透明背景
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    borderRadius: 12,
+    padding: 8,
   },
   right: {
     flex: 1,
-    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    // 靠右 + 半透明背景
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    borderRadius: 12,
+    padding: 8,
   },
   permDenied: {
     position: 'absolute',

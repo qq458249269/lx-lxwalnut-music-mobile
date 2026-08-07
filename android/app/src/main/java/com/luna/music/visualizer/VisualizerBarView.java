@@ -35,6 +35,8 @@ public class VisualizerBarView extends View {
   private boolean mAttachFailed = false;
   /** 是否收到过有效数据（用于提示「没有音频数据」） */
   private volatile boolean mGotData = false;
+  /** attach 失败原因（异常类名/消息），画布提示用，便于定位权限/其他问题 */
+  private String mLastError = null;
 
   private final Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
   private final Paint mTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -152,11 +154,12 @@ public class VisualizerBarView extends View {
     mAudioSessionId = audioSessionId;
     mAttachFailed = false;
     mGotData = false;
+    mLastError = null;
     try {
       // 后台线程采，避免卡 UI
       mCaptureThread = new HandlerThread("visualizer-capture");
       mCaptureThread.start();
-
+      // 全局 session(Vizualizer(0)) 捕获全局输出 mix 需要 RECORD_AUDIO；若无权或受限会在此抛 SecurityException
       mVisualizer = new Visualizer(audioSessionId <= 0 ? 0 : audioSessionId);
       mVisualizer.setCaptureSize(Visualizer.getCaptureSizeRange()[1]);
       mVisualizer.setDataCaptureListener(
@@ -170,6 +173,7 @@ public class VisualizerBarView extends View {
     } catch (Exception e) {
       mAttached = false;
       mAttachFailed = true;
+      mLastError = e.getClass().getSimpleName() + ": " + e.getMessage();
       if (mVisualizer != null) {
         try { mVisualizer.release(); } catch (Exception ignore) {}
         mVisualizer = null;
@@ -213,7 +217,7 @@ public class VisualizerBarView extends View {
   protected void onDraw(Canvas canvas) {
     super.onDraw(canvas);
     if (mAttachFailed) {
-      drawHint(canvas, "无法获取音频频谱");
+      drawHint(canvas, "无法获取音频频谱" + (mLastError != null ? " (" + mLastError + ")" : ""));
       return;
     }
     if (!mAttached || !mGotData) {
