@@ -69,7 +69,7 @@ jobs:
             RELEASE_TAG="${BASE_TAG}"
             RELEASE_NAME="${BASE_TAG}"
           fi
-          RELEASE_PRERELEASE="false"
+          RELEASE_PRERELEASE="true"
 
           # 把完整版本号（含 .N）写进 package.json.version，下游（Gradle versionName/APK 名/下载 URL）自动统一
           NEW_VER="${RELEASE_TAG#v}"
