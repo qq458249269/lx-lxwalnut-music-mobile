@@ -1,30 +1,20 @@
 import { httpGet } from '@/utils/request'
-import { name, repository } from '../../package.json'
+import { author, name } from '../../package.json'
 import { downloadFile, stopDownload, temporaryDirectoryPath } from '@/utils/fs'
 import { getSupportedAbis, installApk } from '@/utils/nativeModules/utils'
 import { APP_PROVIDER_NAME } from '@/config/constant'
 
 const abis = ['arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86', 'universal']
 
-// 从 repository.url 提取实际仓库 owner（git+https://github.com/<owner>/<repo>.git）
-const owner = (() => {
-  try {
-    const match = String(repository?.url || '').match(/github\.com\/([^/]+)\/[^/]+/)
-    return match ? match[1] : 'qq458249269'
-  } catch {
-    return 'qq458249269'
-  }
-})()
-
 const address = [
   [
-    `https://raw.githubusercontent.com/${owner}/${name}/master/publish/version.json`,
+    `https://raw.githubusercontent.com/${author.name}/${name}/master/publish/version.json`,
     'direct',
   ],
   // ['https://registry.npmjs.org/lx-music-mobile-version-info/latest', 'npm'],
-  [`https://cdn.jsdelivr.net/gh/${owner}/${name}/publish/version.json`, 'direct'],
-  [`https://fastly.jsdelivr.net/gh/${owner}/${name}/publish/version.json`, 'direct'],
-  [`https://gcore.jsdelivr.net/gh/${owner}/${name}/publish/version.json`, 'direct'],
+  [`https://cdn.jsdelivr.net/gh/${author.name}/${name}/publish/version.json`, 'direct'],
+  [`https://fastly.jsdelivr.net/gh/${author.name}/${name}/publish/version.json`, 'direct'],
+  [`https://gcore.jsdelivr.net/gh/${author.name}/${name}/publish/version.json`, 'direct'],
   // ['https://registry.npmmirror.com/lx-music-mobile-version-info/latest', 'npm'],
   // ['http://cdn.stsky.cn/lx-music/mobile/version.json', 'direct'],
 ]
@@ -95,10 +85,8 @@ let apkSavePath
 
 export const downloadNewVersion = async (version, onDownload = noop) => {
   const abi = await getTargetAbi()
-  // 同日重发版本带 -N 后缀，tag 用完整版本、APK 附件名用主版本（package.json 无后缀）
-  const [mainVer] = String(version).split('-')
-  const url = `https://github.com/${owner}/${name}/releases/download/v${version}/${name}-v${mainVer}-${abi}.apk`
-  let savePath = temporaryDirectoryPath + '/lx-lxwalnut-music-mobile.apk'
+  const url = `https://github.com/${author.name}/${name}/releases/download/v${version}/${name}-v${version}-${abi}.apk`
+  let savePath = temporaryDirectoryPath + '/lx-netease-music-mobile.apk'
 
   if (downloadJobId) stopDownload(downloadJobId)
 

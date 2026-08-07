@@ -1,11 +1,11 @@
 import { memo, useCallback, useEffect, useRef } from 'react'
-import { View, StatusBar, BackHandler, TouchableOpacity } from 'react-native'
+import { View, StatusBar, BackHandler, AppState, TouchableOpacity } from 'react-native'
 import { Navigation } from 'react-native-navigation'
 import { setComponentId, removeComponentId } from '@/core/common'
 import { COMPONENT_IDS } from '@/config/constant'
 import { createStyle } from '@/utils/tools'
 import { stop, handlePlay } from '@/core/player/player'
-import { useStatusbarHeight } from '@/store/common/hook'
+import { screenkeepAwake, screenUnkeepAwake } from '@/utils/nativeModules/utils'
 import { useTheme } from '@/store/theme/hook'
 import { Icon } from '@/components/common/Icon'
 import VisualizerPlayer, { type VisualizerPlayerHandle } from './VisualizerPlayer'
@@ -13,18 +13,29 @@ import VisualizerPlayer, { type VisualizerPlayerHandle } from './VisualizerPlaye
 export default memo(({ componentId }: { componentId: string }) => {
   const theme = useTheme()
   const playerRef = useRef<VisualizerPlayerHandle>(null)
-  const statusBarHeight = useStatusbarHeight()
 
   useEffect(() => {
     setComponentId(COMPONENT_IDS.visualizer, componentId)
     return () => { removeComponentId(componentId) }
   }, [componentId])
 
+  // Web 可视化页保持屏幕常亮，退出时恢复
+  useEffect(() => {
+    screenkeepAwake()
+    const appstateListener = AppState.addEventListener('change', (state) => {
+      if (state === 'active') screenkeepAwake()
+      else if (state === 'background') screenUnkeepAwake()
+    })
+    return () => {
+      appstateListener.remove()
+      screenUnkeepAwake()
+    }
+  }, [])
+
   // Web 可视化整页接管音频：挂载时停 RN 播放器，卸载恢复播放（不读写进度）
   useEffect(() => {
     void stop()
     return () => {
-      // 卸载兜底：若未走 handleExit（如被其他方式关闭），恢复 native 播放
       void handlePlay()
     }
   }, [])
@@ -34,7 +45,6 @@ export default memo(({ componentId }: { componentId: string }) => {
     playerRef.current?.stop(() => {
       void handlePlay()
     })
-    // 稍后触发 pop，确保组件卸载前 Web 音频已停
     setTimeout(() => {
       Navigation.pop(componentId)
     }, 350)
@@ -50,7 +60,7 @@ export default memo(({ componentId }: { componentId: string }) => {
   }, [handleExit])
 
   return (
-    <View style={[s.root, { paddingTop: statusBarHeight }]}>
+    <View style={s.root}>
       <StatusBar hidden />
       <VisualizerPlayer ref={playerRef} />
       <TouchableOpacity

@@ -13,13 +13,12 @@ const errorHandler = (e: Error, isFatal: boolean) => {
       toast('应用遇到了错误，如果你有固定的重现方式，请截图并在 GitHub 反馈（并附上刚才你进行了什么操作，以及“设置-错误日志”的内容）')
     } else {
       Alert.alert(
-        '💥 请截图反馈 bug 💥',
+        '💥Unexpected error occurred💥',
         `
+  应用出 bug 了😭，以下是错误异常信息。请截图并在 GitHub 反馈（并附上刚才你进行了什么操作，以及附上“设置-错误日志”的内容）。现在应用可能会出现异常，若出现异常请尝试强制结束应用后重新启动！
+
   Error:
   ${isFatal ? 'Fatal:' : ''} ${e.name} ${e.message}
-
-  Stack:
-  ${e.stack}
   `,
         [{
           text: '关闭 (Close)',

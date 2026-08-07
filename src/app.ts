@@ -7,7 +7,7 @@ import { getFontSize } from '@/utils/data'
 import { exitApp } from './utils/nativeModules/utils'
 import { windowSizeTools } from './utils/windowSizeTools'
 import { listenLaunchEvent } from './navigation/regLaunchedEvent'
-import { tipDialog, clipboardWriteText } from './utils/tools'
+import { tipDialog } from './utils/tools'
 import settingState from '@/store/setting/state'
 import { initWebDAVLog } from '@/core/webdavMusic/logger'
 
@@ -130,11 +130,9 @@ void Promise.all([getFontSize(), windowSizeTools.init()])
           void handlePushedHomeScreen()
         })
         .catch((err: any) => {
-          const msg = (err.stack ?? err.message) as string
-          try { clipboardWriteText(msg) } catch {}
           void tipDialog({
             title: 'Error',
-            message: `堆栈已复制到剪贴板，直接粘贴发给开发者即可：\n\n${msg}`,
+            message: err.message,
             btnText: 'Exit',
             bgClose: false,
           }).then(() => {
