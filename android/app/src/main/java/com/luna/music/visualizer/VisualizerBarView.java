@@ -171,12 +171,29 @@ public class VisualizerBarView extends View {
       mVisualizer.setEnabled(true);
       mAttached = true;
     } catch (Exception e) {
-      mAttached = false;
+      // session 构造失败（如 error -3 EINVAL：sessionId 非法/无权访问）→ 回退全局 session (Visualizer(0))，
+      // 捕获本 app 自己的音频输出（需要 RECORD_AUDIO权限）。
       mAttachFailed = true;
       mLastError = e.getClass().getSimpleName() + ": " + e.getMessage();
       if (mVisualizer != null) {
         try { mVisualizer.release(); } catch (Exception ignore) {}
         mVisualizer = null;
+      }
+      try {
+        mVisualizer = new Visualizer(0);
+        mVisualizer.setCaptureSize(Visualizer.getCaptureSizeRange()[1]);
+        mVisualizer.setDataCaptureListener(
+            mDataListener,
+            mCaptureRate,
+            true, // wave
+            true  // fft
+        );
+        mVisualizer.setEnabled(true);
+        mAttached = true;
+        mAudioSessionId = 0; // 已回退全局
+      } catch (Exception inner) {
+        mAttached = false;
+        mLastError = "全局 session 初始化失败: " + inner.getClass().getSimpleName() + ": " + inner.getMessage();
       }
     }
     postInvalidate();
