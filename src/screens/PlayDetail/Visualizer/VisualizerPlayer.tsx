@@ -1,94 +1,79 @@
-import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import { View } from 'react-native'
-import { WebView, type WebViewMessageEvent } from 'react-native-webview'
-import { usePlayMusicInfo } from '@/store/player/hook'
+import { forwardRef, memo, useCallback, useImperativeHandle, useRef, useState } from 'react'
+import { View, TouchableOpacity } from 'react-native'
+import { requireNativeComponent } from 'react-native'
 import { createStyle } from '@/utils/tools'
-import { WebViewSyncManager } from './WebViewSyncManager'
+import { useTheme } from '@/store/theme/hook'
+import { Icon } from '@/components/common/Icon'
 
-const WEBVIEW_ASSETS = 'file:///android_asset/sonic-topography/index.html'
+// Native 律动 View：<VisualizerBarView />
+// props: audioSessionId(int) / mode(int: 0=bar 1=wave) / active(bool)
+const VisualizerBarView = requireNativeComponent('VisualizerBarView')
 
 export interface VisualizerPlayerHandle {
-  /** 立即停掉 WebView 音频，onStop 回调随后触发（不再回传进度） */
-  stop: (onStop?: () => void) => void
+  /** 退出律动：释放频谱采样（native 播放继续） */
+  exit: () => void
+  /** 切换律动形态，0=柱状 1=波形 */
+  setMode: (mode: 0 | 1) => void
 }
 
-const VisualizerPlayer = memo(forwardRef<VisualizerPlayerHandle, { style?: object }>(({ style }, ref) => {
-  const webViewRef = useRef<WebView>(null)
-  const syncRef = useRef<WebViewSyncManager | null>(null)
-  const [ready, setReady] = useState(false)
-  const [jsReady, setJsReady] = useState(false)
-  const playMusicInfo = usePlayMusicInfo()
-  const lastTrackRef = useRef('')
+const VisualizerPlayer = memo(forwardRef<VisualizerPlayerHandle, {
+  style?: object
+  audioSessionId: number
+}>(({ style, audioSessionId }, ref) => {
+  const theme = useTheme()
+  const [mode, setMode] = useState<0 | 1>(0)
+  const [active, setActive] = useState(true)
+
+  const togglerRef = useRef<0 | 1>(0)
+  togglerRef.current = mode
 
   useImperativeHandle(ref, () => ({
-    stop: (onStop?: () => void) => {
-      try {
-        webViewRef.current?.injectJavaScript('window.pauseAudio&&window.pauseAudio()')
-      } catch {}
-      // 稍等 Web 音频停掉，再触发回调（用于恢复 native 播放）
-      setTimeout(() => { onStop?.() }, 200)
-    },
+    exit: () => setActive(false),
+    setMode: (m) => { setMode(m); togglerRef.current = m },
   }), [])
 
-  useEffect(() => {
-    syncRef.current = new WebViewSyncManager(webViewRef)
-    return () => {
-      try {
-        webViewRef.current?.injectJavaScript('window.pauseAudio&&window.pauseAudio()')
-      } catch {}
-      syncRef.current?.destroy()
-      syncRef.current = null
-    }
+  const toggleMode = useCallback(() => {
+    const next: 0 | 1 = togglerRef.current === 0 ? 1 : 0
+    setMode(next)
   }, [])
 
-  useEffect(() => {
-    if (!ready || !jsReady) return
-    syncRef.current?.setReady(true)
-    syncRef.current?.activate()
-    const t1 = setTimeout(() => syncRef.current?.onTrackChanged(), 500)
-    return () => { clearTimeout(t1) }
-  }, [ready, jsReady])
-
-  useEffect(() => {
-    if (!ready || !jsReady || !playMusicInfo) return
-    const m = playMusicInfo.musicInfo ? ('progress' in playMusicInfo.musicInfo ? playMusicInfo.musicInfo.metadata.musicInfo : playMusicInfo.musicInfo) : null
-    const key = `${m?.name || ''}_${m?.singer || ''}`
-    if (key !== lastTrackRef.current && key !== '_') {
-      lastTrackRef.current = key
-      setTimeout(() => syncRef.current?.onTrackChanged(), 100)
-    }
-  }, [playMusicInfo, ready, jsReady])
-
-  const onMsg = useCallback((e: WebViewMessageEvent) => { syncRef.current?.handleWebViewMessage(e) }, [])
-  const onLoadEnd = useCallback(() => setReady(true), [])
-  const onReady = useCallback(() => setJsReady(true), [])
-
-  useEffect(() => { syncRef.current?.addSyncCallback((t) => { if (t === 'ready') onReady() }) }, [onReady])
-
+  // 未进入时无数采；退出立即释放（native 在 audioSessionId/active 为 false 时 detach Visualizer）
   return (
     <View style={[s.root, style]}>
-      <WebView
-        ref={webViewRef}
-        source={{ uri: WEBVIEW_ASSETS, headers: { 'Cache-Control': 'no-cache' } }}
-        style={s.wv}
-        onMessage={onMsg}
-        javaScriptEnabled
-        domStorageEnabled
-        allowsInlineMediaPlayback
-        mediaPlaybackRequiresUserAction={false}
-        automaticallyAdjustContentInsets={false}
-        mixedContentMode="always"
-        originWhitelist={['*']}
-        allowFileAccess
-        allowUniversalAccessFromFileURLs
-        onLoadEnd={onLoadEnd}
-        webviewDebuggingEnabled
-        androidLayerType="hardware"
-      />
+      {audioSessionId != null && audioSessionId >= 0 && (
+        <VisualizerBarView
+          style={s.view}
+          audioSessionId={audioSessionId}
+          mode={mode}
+          active={active}
+        />
+      )}
+      <TouchableOpacity
+        onPress={toggleMode}
+        style={s.modeBtn}
+        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        accessibilityLabel="toggle visualizer mode"
+      >
+        <Icon name={mode === 0 ? 'slider' : 'lyric-on'} size={24} color={theme['c-primary-font']} />
+      </TouchableOpacity>
     </View>
   )
 }))
 
-const s = createStyle({ root: { flex: 1, backgroundColor: '#000' }, wv: { flex: 1 } })
+const s = createStyle({
+  root: { flex: 1, backgroundColor: '#000' },
+  view: { flex: 1 },
+  modeBtn: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+})
 
 export default VisualizerPlayer
