@@ -177,10 +177,13 @@ public class VisualizerBarView extends View {
     }
   }
 
-  /** 遍历系统当前活跃的 audio session（同 uid 无需 RECORD_AUDIO），尝试捕获 */
+  /** 遍历系统当前活跃的 audio session（同 uid 无需 RECORD_AUDIO），尝试捕获。
+   *  getAudioSessions 是隐藏 API（@hide），需反射调用，避免编译报 cannot find symbol。 */
   private boolean tryAttachActiveSessions(AudioManager am) {
     try {
-      int[] sessions = am.getAudioSessions();
+      java.lang.reflect.Method m = AudioManager.class.getMethod("getAudioSessions");
+      m.setAccessible(true);
+      int[] sessions = (int[]) m.invoke(am);
       if (sessions == null) return false;
       for (int sid : sessions) {
         if (sid <= 0) continue;
