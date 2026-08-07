@@ -28,10 +28,6 @@ export default ({ componentId }: { componentId: string }) => {
     setComponentId(COMPONENT_IDS.playDetail, componentId)
   }, [])
 
-  // 父级退出幂等：embedded 模式下 Visualizer 组件卸载会重置内部 exitedRef，
-  // 旋转期间 isHorizontalMode 抖动会让 <Visualizer> 重挂载导致需点两次退出。
-  // 上提到父级（组件常驻不卸载），在旋回竖屏确认稳定前持续拦截。
-  const exitedRef = useRef(false)
   // 设备旋回竖屏后延迟清除抑制，避免旋转动画期间尺寸抖动触发重进
   const suppressResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -40,8 +36,6 @@ export default ({ componentId }: { componentId: string }) => {
 
   useEffect(() => {
     if (showVisualizer) {
-      // 重新进入前重置退出幂等
-      exitedRef.current = false
       setVisualizerActive(true)
       Navigation.mergeOptions(componentId, {
         layout: { orientation: ['landscape'] },
@@ -69,10 +63,10 @@ export default ({ componentId }: { componentId: string }) => {
     }
   }, [isHorizontalMode])
 
-  // 退出律动：释放频谱由 Visualizer 内部处理，这里锁回竖屏回到详情；並抑制橫屏時立刻重进
+  // 退出律动：释放频谱由 Visualizer 内部处理，这里锁回竖屏回到详情；並抑制橫屏時立刻重进。
+  // 三个操作天然幂等（重复执行无害），不做父级幂等拦截——
+  // 否则与子级 handleExit 的 exitedRef 形成双幂等死锁，导致第一次点退出无效。
   const exitVisualizer = useCallback(() => {
-    if (exitedRef.current) return // 幂等：防止旋转抖动/重复点击导致需点两次
-    exitedRef.current = true
     setVisualizerSuppressed(true)
     setVisualizerActive(false)
     Navigation.mergeOptions(componentId, {
@@ -85,7 +79,7 @@ export default ({ componentId }: { componentId: string }) => {
   }
 
   if (visualizerActive) {
-    return <Visualizer componentId={componentId} onExit={exitVisualizer} embedded />
+    return <Visualizer key="embedded-visualizer" componentId={componentId} onExit={exitVisualizer} embedded />
   }
 
   return (
