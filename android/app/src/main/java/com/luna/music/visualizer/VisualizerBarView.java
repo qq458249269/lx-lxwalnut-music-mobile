@@ -5,6 +5,7 @@ import android.graphics.Canvas;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.Shader;
+import android.media.AudioManager;
 import android.media.audiofx.Visualizer;
 import android.os.HandlerThread;
 import android.util.AttributeSet;
@@ -146,21 +147,14 @@ public class VisualizerBarView extends View {
     }
   }
 
-  /** 设置 audioSessionId 并挂载频谱采样（幂等：已 attach 相同 session 则忽略）
-   *  sessionId<=0 时用 0（系统全局 session）：捕获全局输出 mix，ExoPlayer 播放时即本 app 输出 */
-  public void attachAudioSession(int audioSessionId) {
-    if (audioSessionId == mAudioSessionId && mAttached) return;
-    detachAudioSession(); // 换 session 前先释放旧的
-    mAudioSessionId = audioSessionId;
-    mAttachFailed = false;
-    mGotData = false;
-    mLastError = null;
+  /** 尝试挂载指定 audio session 的频谱；成功返回 true */
+  private boolean tryAttach(int sessionId) {
     try {
-      // 后台线程采，避免卡 UI
-      mCaptureThread = new HandlerThread("visualizer-capture");
-      mCaptureThread.start();
-      // 全局 session(Vizualizer(0)) 捕获全局输出 mix 需要 RECORD_AUDIO；若无权或受限会在此抛 SecurityException
-      mVisualizer = new Visualizer(audioSessionId <= 0 ? 0 : audioSessionId);
+      if (mVisualizer != null) {
+        try { mVisualizer.release(); } catch (Exception ignore) {}
+        mVisualizer = null;
+      }
+      mVisualizer = new Visualizer(sessionId);
       mVisualizer.setCaptureSize(Visualizer.getCaptureSizeRange()[1]);
       mVisualizer.setDataCaptureListener(
           mDataListener,
@@ -170,32 +164,73 @@ public class VisualizerBarView extends View {
       );
       mVisualizer.setEnabled(true);
       mAttached = true;
+      mAudioSessionId = sessionId;
+      return true;
     } catch (Exception e) {
-      // session 构造失败（如 error -3 EINVAL：sessionId 非法/无权访问）→ 回退全局 session (Visualizer(0))，
-      // 捕获本 app 自己的音频输出（需要 RECORD_AUDIO权限）。
-      mAttachFailed = true;
-      mLastError = e.getClass().getSimpleName() + ": " + e.getMessage();
       if (mVisualizer != null) {
         try { mVisualizer.release(); } catch (Exception ignore) {}
         mVisualizer = null;
       }
-      try {
-        mVisualizer = new Visualizer(0);
-        mVisualizer.setCaptureSize(Visualizer.getCaptureSizeRange()[1]);
-        mVisualizer.setDataCaptureListener(
-            mDataListener,
-            mCaptureRate,
-            true, // wave
-            true  // fft
-        );
-        mVisualizer.setEnabled(true);
-        mAttached = true;
-        mAudioSessionId = 0; // 已回退全局
-      } catch (Exception inner) {
-        mAttached = false;
-        mLastError = "全局 session 初始化失败: " + inner.getClass().getSimpleName() + ": " + inner.getMessage();
-      }
+      mAttached = false;
+      mLastError = e.getClass().getSimpleName() + ": " + e.getMessage();
+      return false;
     }
+  }
+
+  /** 遍历系统当前活跃的 audio session（同 uid 无需 RECORD_AUDIO），尝试捕获 */
+  private boolean tryAttachActiveSessions(AudioManager am) {
+    try {
+      int[] sessions = am.getAudioSessions();
+      if (sessions == null) return false;
+      for (int sid : sessions) {
+        if (sid <= 0) continue;
+        if (tryAttach(sid)) return true;
+      }
+    } catch (Exception ignore) {}
+    return false;
+  }
+
+  /** 设置 audioSessionId 并挂载频谱采样（幂等：已 attach 相同 session 则忽略）
+   *  优先固定 session（TrackPlayer 注入，同 uid 无需权限）；
+   *  失败回退遍历活跃 session；最后回退全局 session (Visualizer(0)，需 RECORD_AUDIO)。 */
+  public void attachAudioSession(int audioSessionId) {
+    if (audioSessionId == mAudioSessionId && mAttached) return;
+    detachAudioSession(); // 换 session 前先释放旧的
+    mAudioSessionId = audioSessionId;
+    mAttachFailed = false;
+    mGotData = false;
+    mLastError = null;
+    // 后台线程采，避免卡 UI
+    mCaptureThread = new HandlerThread("visualizer-capture");
+    mCaptureThread.start();
+
+    AudioManager am = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
+    int target = audioSessionId <= 0 ? 0 : audioSessionId;
+
+    // 1) 固定/指定 session（>0 同 uid 捕获无需权限）
+    if (target > 0) {
+      if (tryAttach(target)) { postInvalidate(); return; }
+      mAttachFailed = true;
+    }
+
+    // 2) 遍历系统活跃 session 兜底（如 audioOffload 覆盖了固定 id）
+    if (am != null && tryAttachActiveSessions(am)) {
+      mAttachFailed = false;
+      postInvalidate();
+      return;
+    }
+
+    // 3) 最后回退全局 session (Visualizer(0))：捕获全局输出 mix，需要 RECORD_AUDIO 权限
+    mAttachFailed = true;
+    if (tryAttach(0)) {
+      mAttachFailed = false;
+      mAudioSessionId = 0;
+      postInvalidate();
+      return;
+    }
+    // 全部失败
+    mAttached = false;
+    if (mLastError == null) mLastError = "无法获取音频频谱";
     postInvalidate();
   }
 

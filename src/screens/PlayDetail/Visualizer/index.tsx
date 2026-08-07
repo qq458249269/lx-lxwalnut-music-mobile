@@ -5,6 +5,8 @@ import { setComponentId, removeComponentId } from '@/core/common'
 import { COMPONENT_IDS } from '@/config/constant'
 import { createStyle } from '@/utils/tools'
 import TrackPlayer from 'react-native-track-player'
+import { playNext, playPrev, togglePlay } from '@/core/player/player'
+import { useIsPlay } from '@/store/player/hook'
 import { screenkeepAwake, screenUnkeepAwake } from '@/utils/nativeModules/utils'
 import { useTheme } from '@/store/theme/hook'
 import { Icon } from '@/components/common/Icon'
@@ -12,18 +14,22 @@ import VisualizerPlayer, { type VisualizerPlayerHandle } from './VisualizerPlaye
 import Pic from '@/screens/PlayDetail/LandscapeImmersion/Pic'
 import Lyric from '@/screens/PlayDetail/LandscapeImmersion/Lyric'
 
-// Native 音乐播放器的 audio session id。
-// fork 无 getAudioSessionId 时返回 0，native 侧用系统全局 session(Visualizer(0)) 捕获本 app 输出频谱。
+// 律动频谱使用固定 audio session id：TrackPlayer 补丁（patchMediaLayout.js）
+// 会给 ExoPlayer 设置该固定 id（见 MusicManager.createLocalPlayback），
+// 同 uid 进程用 Visualizer(sessionId) 捕获无需 RECORD_AUDIO 权限。
+const FIXED_SESSION_ID = 1000
+
 const getAudioSessionId = async (): Promise<number> => {
+  // 优先取 TrackPlayer 真实 session id（fork 若有该方法）
   try {
     // @ts-expect-error fork 未声明该方法
     const getter = TrackPlayer.getAudioSessionId
     if (typeof getter === 'function') {
       const id = await getter()
-      return typeof id === 'number' ? id : 0
+      if (typeof id === 'number' && id > 0) return id
     }
   } catch {}
-  return 0
+  return FIXED_SESSION_ID
 }
 
 // 全局 session 频谱需要 RECORD_AUDIO（Android 6+ 危险权限）
@@ -56,12 +62,17 @@ export default memo(({ componentId, onExit, embedded = false }: Props) => {
   const playerRef = useRef<VisualizerPlayerHandle>(null)
   const [sessionId, setSessionId] = useState(-1)
   const [mode, setMode] = useState<0 | 1>(0)
+  const isPlay = useIsPlay()
 
   const toggleMode = useCallback(() => {
     const next: 0 | 1 = mode === 0 ? 1 : 0
     setMode(next)
     playerRef.current?.setMode(next)
   }, [mode])
+
+  const handlePrev = useCallback(() => { void playPrev() }, [])
+  const handleNext = useCallback(() => { void playNext() }, [])
+  const handleTogglePlay = useCallback(() => { togglePlay() }, [])
 
   useEffect(() => {
     if (embedded) return
@@ -153,6 +164,33 @@ export default memo(({ componentId, onExit, embedded = false }: Props) => {
           </TouchableOpacity>
         </View>
       )}
+      {/* 底部控制条：上一首 / 播放暂停 / 下一首（小尺寸，不遮挡律动画面） */}
+      <View style={s.controls} pointerEvents="box-none">
+        <TouchableOpacity
+          onPress={handlePrev}
+          style={s.ctrlBtn}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityLabel="previous"
+        >
+          <Icon name="prevMusic" size={26} color={theme['c-primary-font']} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={handleTogglePlay}
+          style={[s.ctrlBtn, s.ctrlBtnCenter]}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityLabel={isPlay ? 'pause' : 'play'}
+        >
+          <Icon name={isPlay ? 'pause' : 'play'} size={28} color={theme['c-primary-font']} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={handleNext}
+          style={s.ctrlBtn}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityLabel="next"
+        >
+          <Icon name="nextMusic" size={26} color={theme['c-primary-font']} />
+        </TouchableOpacity>
+      </View>
       <TouchableOpacity
         onPress={toggleMode}
         style={s.modeBtn}
@@ -198,6 +236,30 @@ const s = createStyle({
     justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.4)',
     zIndex: 10,
+  },
+  controls: {
+    position: 'absolute',
+    bottom: 20,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  ctrlBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    marginHorizontal: 12,
+  },
+  ctrlBtnCenter: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
   },
   overlay: {
     flex: 1,
