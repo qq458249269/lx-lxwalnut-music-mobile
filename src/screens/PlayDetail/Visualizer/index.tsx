@@ -5,7 +5,6 @@ import { setComponentId, removeComponentId } from '@/core/common'
 import { COMPONENT_IDS } from '@/config/constant'
 import { createStyle } from '@/utils/tools'
 import { stop, handlePlay } from '@/core/player/player'
-import { getPosition, setCurrentTime } from '@/plugins/player/utils'
 import { screenkeepAwake, screenUnkeepAwake } from '@/utils/nativeModules/utils'
 import { useTheme } from '@/store/theme/hook'
 import { Icon } from '@/components/common/Icon'
@@ -14,7 +13,6 @@ import VisualizerPlayer, { type VisualizerPlayerHandle } from './VisualizerPlaye
 export default memo(({ componentId }: { componentId: string }) => {
   const theme = useTheme()
   const playerRef = useRef<VisualizerPlayerHandle>(null)
-  const resumePosRef = useRef(0)
 
   useEffect(() => {
     setComponentId(COMPONENT_IDS.visualizer, componentId)
@@ -34,43 +32,19 @@ export default memo(({ componentId }: { componentId: string }) => {
     }
   }, [])
 
-  // Web 可视化整页接管音频：挂载时记录 native 进度并停 RN 播放器
+  // Web 可视化整页接管音频：挂载时停 RN 播放器（不读/不回写进度，Web 从当前曲开头播放）
   useEffect(() => {
-    void (async () => {
-      try {
-        global.lx.visualizerResumePos = await getPosition()
-        resumePosRef.current = global.lx.visualizerResumePos
-      } catch {
-        global.lx.visualizerResumePos = 0
-        resumePosRef.current = 0
-      }
-      void stop()
-    })()
+    void stop()
     return () => {
-      // 卸载兜底：若未走 onBackPress（如被其他方式关闭），恢复 native 续播
-      const pos = global.lx.visualizerLastPos
-      global.lx.visualizerResumePos = 0
-      global.lx.visualizerLastPos = 0
-      void (async () => {
-        if (pos > 0 && pos !== resumePosRef.current) {
-          try { await setCurrentTime(pos) } catch {}
-        }
-        void handlePlay()
-      })()
+      // 卸载兜底：若未走 handleExit（如被其他方式关闭），恢复 native 播放
+      void handlePlay()
     }
   }, [])
 
-  // 退出律动页：停 Web 音频、回传进度、恢复 native 续播，再 pop
+  // 退出律动页：停 Web 音频、恢复 native 播放（不回写进度）
   const handleExit = useCallback(() => {
-    playerRef.current?.stop((resumePos) => {
-      global.lx.visualizerResumePos = 0
-      global.lx.visualizerLastPos = 0
-      void (async () => {
-        if (resumePos > 0 && resumePos !== resumePosRef.current) {
-          try { await setCurrentTime(resumePos) } catch {}
-        }
-        void handlePlay()
-      })()
+    playerRef.current?.stop(() => {
+      void handlePlay()
     })
     // 稍后触发 pop，确保组件卸载前 Web 音频已停
     setTimeout(() => {
