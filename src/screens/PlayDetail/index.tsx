@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { View } from 'react-native'
 import { Navigation } from 'react-native-navigation'
 import { useHorizontalMode } from '@/utils/hooks'
