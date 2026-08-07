@@ -105,7 +105,7 @@ jobs:
           CUR_VER=$(node -p -e 'try{JSON.parse(require("fs").readFileSync("./publish/version.json","utf8")).version||""}catch(e){""}' 2>/dev/null || echo "")
           # 纯数字段版本比较（与 app 内 compareVer 语义一致）：RC=0 equal / RC=1 a>b / RC=2 a<b
           cmp() { node -e "const f=v=>(''+v).replace(/[^0-9]/g,' ').trim().split(/[. ]+/).filter(Boolean);const a=f('$1'),b=f('$2');const c=Math.max(a.length,b.length);let i=0;for(;i<c;i++){a[i]=~~a[i];b[i]=~~b[i];if(a[i]>b[i]){process.exit(1)}if(a[i]<b[i]){process.exit(2)}}process.exit(0)"; }
-          cmp "$CUR_VER" "$NEW_VER"; RC=$?
+          cmp "$CUR_VER" "$NEW_VER" || RC=$?
           if [ "$RC" = "1" ] || [ "$RC" = "0" ]; then
             echo "version.json already >= ${NEW_VER}, skip"
           elif [ "$RC" = "2" ]; then
