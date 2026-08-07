@@ -21,7 +21,6 @@ export class WebViewSyncManager {
   private currentIndex = -1
   private playMode: PlayMode = 'listLoop'
   private dispatchLock = false
-  private lastPosition = 0
   private webViewRef: React.RefObject<any>
 
   private static SWITCH_DEBOUNCE_MS = 800
@@ -116,10 +115,9 @@ export class WebViewSyncManager {
         case 'ready': wb('Msg', 'WebView ready'); this.setReady(true); break
         case 'log': wb('WebView', data.message, data.data); break
         case 'playbackState':
-          this.lastPosition = Number(data.currentTime) || this.lastPosition
           if (!this.isSwitchingTrack && data.ended) this.handleEnded()
           break
-                case 'prev': { if (this.canSwitchTrack()) { const i = this.getNextIndex('prev'); if (i >= 0) this.switchToTrack(i) } break }
+        case 'prev': { if (this.canSwitchTrack()) { const i = this.getNextIndex('prev'); if (i >= 0) this.switchToTrack(i) } break }
         case 'next': { if (this.canSwitchTrack()) { const i = this.getNextIndex('next'); if (i >= 0) this.switchToTrack(i) } break }
         case 'playFromList': if (data.index != null && this.canSwitchTrack()) this.switchToTrack(data.index); break
         case 'playMode': this.setPlayMode(data.mode || 'listLoop'); break

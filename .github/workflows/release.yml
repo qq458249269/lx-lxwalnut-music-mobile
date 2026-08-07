@@ -23,6 +23,14 @@ jobs:
       - name: Setup Env
         uses: ./.github/actions/setup
 
+      - name: Cache Metro transform cache
+        uses: actions/cache@v5
+        with:
+          path: .metro-cache
+          key: metro-${{ runner.os }}-${{ hashFiles('package-lock.json', 'metro.config.js', 'babel.config.js') }}
+          restore-keys: |
+            metro-${{ runner.os }}-
+
       - name: Build Packages
         env:
           DISABLE_SVG: 1

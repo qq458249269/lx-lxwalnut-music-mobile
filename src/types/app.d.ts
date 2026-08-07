@@ -58,16 +58,6 @@ interface GlobalData {
   // }
 
   // syncKeyInfo: LX.Sync.KeyInfo
-
-  /**
-   * 进入 Web 可视化前 native 的播放进度(秒)，供 WebView 续播
-   */
-  visualizerResumePos: number
-
-  /**
-   * 退出 Web 可视化时 WebView 上报的当前播放进度(秒)，供 native 续播
-   */
-  visualizerLastPos: number
 }
 interface Artist {
   id: string | number;
