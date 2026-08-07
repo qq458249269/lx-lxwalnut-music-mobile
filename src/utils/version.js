@@ -95,7 +95,7 @@ let apkSavePath
 
 export const downloadNewVersion = async (version, onDownload = noop) => {
   const abi = await getTargetAbi()
-  const url = `https://github.com/${author.name}/${name}/releases/download/v${version}/${name}-v${version}-${abi}.apk`
+  const url = `https://github.com/${owner}/${name}/releases/download/v${version}/${name}-v${version}-${abi}.apk`
   let savePath = temporaryDirectoryPath + '/lx-lxwalnut-music-mobile.apk'
 
   if (downloadJobId) stopDownload(downloadJobId)

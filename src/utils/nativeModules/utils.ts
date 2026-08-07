@@ -53,6 +53,9 @@ export const getSystemLocales = async (): Promise<string> => {
   return UtilsModule.getSystemLocales()
 }
 
+/** 返回 APK 实际的 versionName（含 -N 后缀） */
+export const getAppVersionName = () => UtilsModule.getAppVersionName() as Promise<string>
+
 export const onScreenStateChange = (handler: (state: 'ON' | 'OFF') => void): (() => void) => {
   const eventEmitter = new NativeEventEmitter(UtilsModule)
   const eventListener = eventEmitter.addListener('screen-state', (event) => {

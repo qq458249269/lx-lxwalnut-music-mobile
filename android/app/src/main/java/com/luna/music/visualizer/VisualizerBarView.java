@@ -2,7 +2,6 @@ package com.luna.music.visualizer;
 
 import android.content.Context;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.Shader;
@@ -19,11 +18,13 @@ import java.util.Arrays;
  * 用 android.media.audiofx.Visualizer 挂到正在播放的 audioSession，
  * 周期回调 FFT 数据，onDraw 直接画 bar(柱状)/wave(波形) 两种形态。
  * 数据到绘制全在 native，不经过 RN bridge，性能优先。
+ * 采集失败或无数据时，直接在画布上画提示文字（不依赖日志/RN 事件）。
  */
 public class VisualizerBarView extends View {
   // 律动形态
   public static final int MODE_BARS = 0;
   public static final int MODE_WAVE = 1;
+  private static final int BUCKETS = 64;
 
   private Visualizer mVisualizer = null;
   private int mMode = MODE_BARS;
@@ -31,15 +32,19 @@ public class VisualizerBarView extends View {
   private final int mBarColor2 = 0xFFFF3D8E; // 品红（渐变尾）
   private int mAudioSessionId = -1;
   private boolean mAttached = false;
+  private boolean mAttachFailed = false;
+  /** 是否收到过有效数据（用于提示「没有音频数据」） */
+  private volatile boolean mGotData = false;
 
   private final Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+  private final Paint mTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
   // FFT 采样
   private final int mCaptureRate = Visualizer.getMaxCaptureRate() > 0
       ? Math.min(Visualizer.getMaxCaptureRate(), 30000) : 30000; // Hz，限制 30fps
-  private final float[] mLevels = new float[64];
-  private final float[] mSmoothed = new float[64];
-  private final float[] mWave = new float[64];
+  private final float[] mLevels = new float[BUCKETS];
+  private final float[] mSmoothed = new float[BUCKETS];
+  private final float[] mWave = new float[BUCKETS];
 
   // 平滑
   private final float mSmoothFactor = 0.65f;
@@ -56,10 +61,14 @@ public class VisualizerBarView extends View {
             int n = waveform.length;
             if (n == 0) return;
             int step = Math.max(1, n / mWave.length);
+            float maxAmp = 0f;
             for (int i = 0; i < mWave.length; i++) {
               int idx = Math.min(n - 1, i * step);
-              mWave[i] = ((float) (waveform[idx] & 0xFF) - 128f) / 128f;
+              float v = ((float) (waveform[idx] & 0xFF) - 128f) / 128f;
+              mWave[i] = v;
+              if (Math.abs(v) > maxAmp) maxAmp = Math.abs(v);
             }
+            if (maxAmp > 0.02f) mGotData = true;
             postInvalidate();
           }
         }
@@ -69,18 +78,26 @@ public class VisualizerBarView extends View {
           // 柱状模式：FFT 幅值
           if (mMode != MODE_BARS) return;
           int n = Math.min(fft.length, 256);
-          if (n < 8) return; // 数据太少不绘制，防越界
-          for (int i = 0; i < mLevels.length; i++) {
-            // 每桶取多个 FFT bin 的幅度（平方和开根，对应能量）
-            int idx0 = Math.min(n - 2, i * 4 + 2);
-            int idx1 = Math.min(n - 2, idx0 + 3);
-            int real = fft[idx0];
-            int imag = fft[idx0 + 1];
-            int real2 = fft[idx1];
-            int imag2 = fft[idx1 + 1];
-            float mag = (float) Math.sqrt(real * real + imag * imag + real2 * real2 + imag2 * imag2);
-            mLevels[i] = Math.min(1f, mag / 120f);
+          if (n < 4) return; // 数据太少不绘制，防越界
+          // fft 格式：fft[0]=DC(实)，fft[1]=Nyquist(实)，之后每格 [real, imag]
+          // bin k (k>=1) 的实部在 fft[2k]，虚部在 fft[2k+1]
+          int bins = Math.max(1, n / 2 - 1); // 可用 bin 数（不含 DC 与 Nyquist）
+          float maxMag = 0f;
+          for (int i = 0; i < BUCKETS; i++) {
+            // 每个桶覆盖 bins/BUCKETS 个 bin，取能量和
+            int start = 1 + i * bins / BUCKETS;
+            int end = Math.min(bins, 1 + (i + 1) * bins / BUCKETS);
+            double sumSq = 0;
+            for (int k = start; k < end; k++) {
+              int real = fft[2 * k];
+              int imag = fft[2 * k + 1];
+              sumSq += real * real + imag * imag;
+            }
+            float mag = (float) Math.sqrt(sumSq);
+            mLevels[i] = Math.min(1f, mag / 100f);
+            if (mag > maxMag) maxMag = mag;
           }
+          if (maxMag > 2f) mGotData = true;
           postInvalidate();
         }
       };
@@ -97,6 +114,9 @@ public class VisualizerBarView extends View {
 
   private void init() {
     mPaint.setStyle(Paint.Style.FILL);
+    mTextPaint.setColor(0x99FFFFFF);
+    mTextPaint.setTextSize(15 * getResources().getDisplayMetrics().scaledDensity);
+    mTextPaint.setTextAlign(Paint.Align.CENTER);
     setWillNotDraw(false);
   }
 
@@ -124,11 +144,13 @@ public class VisualizerBarView extends View {
   }
 
   /** 设置 audioSessionId 并挂载频谱采样（幂等：已 attach 相同 session 则忽略）
-   *  sessionId<=0 时用 0（系统全局 session）兜底：ExoPlayer 播放时即本 app 输出 */
+   *  sessionId<=0 时用 0（系统全局 session）：捕获全局输出 mix，ExoPlayer 播放时即本 app 输出 */
   public void attachAudioSession(int audioSessionId) {
     if (audioSessionId == mAudioSessionId && mAttached) return;
     detachAudioSession(); // 换 session 前先释放旧的
     mAudioSessionId = audioSessionId;
+    mAttachFailed = false;
+    mGotData = false;
     try {
       // 后台线程采，避免卡 UI
       mCaptureThread = new HandlerThread("visualizer-capture");
@@ -146,11 +168,13 @@ public class VisualizerBarView extends View {
       mAttached = true;
     } catch (Exception e) {
       mAttached = false;
+      mAttachFailed = true;
       if (mVisualizer != null) {
         try { mVisualizer.release(); } catch (Exception ignore) {}
         mVisualizer = null;
       }
     }
+    postInvalidate();
   }
 
   public void detachAudioSession() {
@@ -187,6 +211,14 @@ public class VisualizerBarView extends View {
   @Override
   protected void onDraw(Canvas canvas) {
     super.onDraw(canvas);
+    if (mAttachFailed) {
+      drawHint(canvas, "无法获取音频频谱");
+      return;
+    }
+    if (!mAttached || !mGotData) {
+      drawHint(canvas, mActive ? "正在获取音频频谱…" : "未获取音频");
+      return;
+    }
     if (mMode == MODE_WAVE) {
       drawWave(canvas);
     } else {
@@ -194,14 +226,20 @@ public class VisualizerBarView extends View {
     }
   }
 
+  private void drawHint(Canvas canvas, String text) {
+    int w = getWidth();
+    int h = getHeight();
+    if (w <= 0 || h <= 0) return;
+    canvas.drawText(text, w / 2f, h / 2f, mTextPaint);
+  }
+
   private void drawBars(Canvas canvas) {
     int w = getWidth();
     int h = getHeight();
     if (w <= 0 || h <= 0) return;
 
-    int n = mLevels.length;
     float gap = w * 0.006f;
-    float barW = (w - gap * (n - 1)) / n;
+    float barW = (w - gap * (BUCKETS - 1)) / BUCKETS;
     float midY = h * 0.5f;
 
     // 线性渐变：青蓝 -> 品红
@@ -209,13 +247,13 @@ public class VisualizerBarView extends View {
         mBarColor, mBarColor2, Shader.TileMode.CLAMP);
     mPaint.setShader(shader);
 
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < BUCKETS; i++) {
       // 平滑上升、慢衰减，形成律动拖尾
       float target = mLevels[i];
       if (target > mSmoothed[i]) mSmoothed[i] = target;
       else mSmoothed[i] *= mDecay;
       float v = mSmoothed[i];
-      float barH = Math.max(2f, v * h * 0.9f);
+      float barH = Math.max(v > 0.001f ? h * 0.04f : 1f, v * h * 0.9f);
       float left = i * (barW + gap);
       canvas.drawRect(left, midY - barH / 2f, left + barW, midY + barH / 2f, mPaint);
     }
@@ -239,12 +277,12 @@ public class VisualizerBarView extends View {
     mPaint.setColor(mBarColor);
 
     // 平滑
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < mWave.length; i++) {
       float target = mWave[i];
       mSmoothed[i] = mSmoothed[i] * mSmoothFactor + target * (1 - mSmoothFactor);
     }
 
-    float step = w / (float) (n - 1);
+    float step = w / (float) (mWave.length - 1);
     android.graphics.Path path = new android.graphics.Path();
     path.moveTo(0, midY + mSmoothed[0] * h * 0.4f);
     for (int i = 1; i < n; i++) {

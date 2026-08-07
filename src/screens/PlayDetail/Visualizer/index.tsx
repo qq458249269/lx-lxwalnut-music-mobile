@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
-import { View, StatusBar, BackHandler, AppState, TouchableOpacity, PermissionsAndroid } from 'react-native'
+import { View, StatusBar, BackHandler, AppState, TouchableOpacity, PermissionsAndroid, Linking, Text } from 'react-native'
 import { Navigation } from 'react-native-navigation'
 import { setComponentId, removeComponentId } from '@/core/common'
 import { COMPONENT_IDS } from '@/config/constant'
@@ -40,15 +40,25 @@ const requestRecordPermission = async (): Promise<boolean> => {
   }
 }
 
-export default memo(({ componentId }: { componentId: string }) => {
+interface Props {
+  componentId: string
+  /** 自定义退出行为：若不传，退出时 Navigation.pop(componentId)。
+   *  横屏自动进律动时传入，用于「仅停止律动、不 pop 页面」 */
+  onExit?: () => void
+  /** 横屏自动进律动复用时为 true：本组件不入栈，不注册 COMPONENT_IDS.visualizer */
+  embedded?: boolean
+}
+
+export default memo(({ componentId, onExit, embedded = false }: Props) => {
   const theme = useTheme()
   const playerRef = useRef<VisualizerPlayerHandle>(null)
   const [sessionId, setSessionId] = useState(-1)
 
   useEffect(() => {
+    if (embedded) return
     setComponentId(COMPONENT_IDS.visualizer, componentId)
     return () => { removeComponentId(componentId) }
-  }, [componentId])
+  }, [componentId, embedded])
 
   // 律动页保持屏幕常亮，退出时恢复
   useEffect(() => {
@@ -64,13 +74,14 @@ export default memo(({ componentId }: { componentId: string }) => {
   }, [])
 
   // 挂载：请求频谱权限，拿到 native 播放器的 audioSessionId（native 播放不中断，律动是只读旁路）。
-  // 未授权则 sessionId 保持 -1，频谱静默（组件不渲染，native 不采）
+  // 未授权（native 侧 Visualizer(0) 无法采）→ sessionId 保持 -1，频谱静默，显示去设置引导
+  const [permissionDenied, setPermissionDenied] = useState(false)
   useEffect(() => {
     let cancelled = false
     void (async () => {
       const ok = await requestRecordPermission()
       if (cancelled) return
-      if (!ok) return // 保持 -1
+      if (!ok) { setPermissionDenied(true); return } // 未授权
       const id = await getAudioSessionId()
       if (cancelled) return
       setSessionId(id)
@@ -82,10 +93,14 @@ export default memo(({ componentId }: { componentId: string }) => {
   const handleExit = useCallback(() => {
     playerRef.current?.exit()
     setSessionId(-1)
-    setTimeout(() => {
-      Navigation.pop(componentId)
-    }, 150)
-  }, [componentId])
+    if (onExit) {
+      onExit()
+    } else {
+      setTimeout(() => {
+        Navigation.pop(componentId)
+      }, 150)
+    }
+  }, [componentId, onExit])
 
   useEffect(() => {
     const onBackPress = () => {
@@ -100,6 +115,17 @@ export default memo(({ componentId }: { componentId: string }) => {
     <View style={s.root}>
       <StatusBar hidden />
       <VisualizerPlayer ref={playerRef} audioSessionId={sessionId} />
+      {permissionDenied && (
+        <View style={s.permDenied}>
+          <Text style={s.permDeniedText}>律动模式需要麦克风权限来分析音频频谱</Text>
+          <TouchableOpacity
+            onPress={() => { Linking.openSettings() }}
+            style={s.permDeniedBtn}
+          >
+            <Text style={s.permDeniedBtnText}>去开启权限</Text>
+          </TouchableOpacity>
+        </View>
+      )}
       <TouchableOpacity
         onPress={handleExit}
         style={s.exitBtn}
@@ -124,5 +150,29 @@ const s = createStyle({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  permDenied: {
+    position: 'absolute',
+    top: '50%',
+    left: 24,
+    right: 24,
+    marginTop: -40,
+    alignItems: 'center',
+  },
+  permDeniedText: {
+    color: '#fff',
+    fontSize: 15,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  permDeniedBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#00D4FF',
+  },
+  permDeniedBtnText: {
+    color: '#000',
+    fontSize: 14,
   },
 })

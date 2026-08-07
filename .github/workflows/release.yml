@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'publish/version.json'
 
 jobs:
   Android:
@@ -12,7 +14,7 @@ jobs:
     permissions:
       contents: write
     outputs:
-      package_version: ${{ steps.package_version.outputs.package_version }}
+      package_version: ${{ steps.release_target.outputs.package_version }}
       release_tag: ${{ steps.release_target.outputs.release_tag }}
       release_name: ${{ steps.release_target.outputs.release_name }}
       release_prerelease: ${{ steps.release_target.outputs.release_prerelease }}
@@ -31,9 +33,52 @@ jobs:
           restore-keys: |
             metro-${{ runner.os }}-
 
+      # 先解析本次发布目标 tag（可能含 -N 后缀），再把 -N 注入 package.json.version。
+      # 注入后 versionName / APK 文件名 / 下载 URL / version.json 全部带 -N，app 内版本显示与更新一致。
+      - name: Resolve release target & inject version
+        id: release_target
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          BASE_VERSION=$(node -p -e 'require("./package.json").version')
+          BASE_TAG="v${BASE_VERSION}"
+          if gh release view "${BASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            # 同日已有版本：找最大 -N 后缀并递增（计所有已有 tag，含 pre-release/Release）
+            N=$(BASE_VER="${BASE_VERSION}" gh release list --repo "${GITHUB_REPOSITORY}" --json tagName 2>/dev/null | BASE_VER="${BASE_VERSION}" node -e '
+              let s="";
+              const pref="v"+process.env.BASE_VER+"-";
+              process.stdin.on("data",d=>s+=d).on("end",()=>{
+                const arr=JSON.parse(s);
+                const maxN=arr.reduce((acc,r)=>{
+                  if(r.tagName.startsWith(pref)){ const n=parseInt(r.tagName.slice(pref.length)); if(!Number.isNaN(n) && n>acc) return n; }
+                  return acc;
+                },0);
+                console.log(maxN);
+              })
+            ')
+            N=${N:-0}
+            RELEASE_TAG="${BASE_TAG}-$((N+1))"
+            RELEASE_NAME="${BASE_TAG}-$((N+1))"
+          else
+            RELEASE_TAG="${BASE_TAG}"
+            RELEASE_NAME="${BASE_TAG}"
+          fi
+          RELEASE_PRERELEASE="false"
+
+          # 把 -N 写进 package.json.version，下游（Gradle versionName/APK 名/下载 URL）自动统一
+          NEW_VER="${RELEASE_TAG#v}"
+          node -e "const fs=require('fs');const f='./package.json';const j=JSON.parse(fs.readFileSync(f,'utf8'));j.version='${NEW_VER}';fs.writeFileSync(f,JSON.stringify(j,null,2)+'\n')"
+
+          echo "package_version=${NEW_VER}" >> "$GITHUB_OUTPUT"
+          echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "release_name=${RELEASE_NAME}" >> "$GITHUB_OUTPUT"
+          echo "release_prerelease=${RELEASE_PRERELEASE}" >> "$GITHUB_OUTPUT"
+
       - name: Build Packages
         env:
           DISABLE_SVG: 1
+          PACKAGE_VERSION: ${{ steps.release_target.outputs.package_version }}
         shell: bash
         run: |
           cd android
@@ -42,51 +87,44 @@ jobs:
           ./gradlew assembleRelease -PMYAPP_UPLOAD_STORE_FILE='${{ secrets.MYAPP_UPLOAD_STORE_FILE }}' -PMYAPP_UPLOAD_KEY_ALIAS='${{ secrets.MYAPP_UPLOAD_KEY_ALIAS }}' -PMYAPP_UPLOAD_STORE_PASSWORD='${{ secrets.MYAPP_UPLOAD_STORE_PASSWORD }}' -PMYAPP_UPLOAD_KEY_PASSWORD='${{ secrets.MYAPP_UPLOAD_KEY_PASSWORD }}'
           rm -f app/${{ secrets.MYAPP_UPLOAD_STORE_FILE }}
 
-      - name: Get package version
-        id: package_version
-        shell: bash
-        run: |
-          PACKAGE_VERSION=$(node -p -e 'require("./package.json").version')
-          echo "PACKAGE_VERSION=${PACKAGE_VERSION}" >> "$GITHUB_ENV"
-          echo "package_version=${PACKAGE_VERSION}" >> "$GITHUB_OUTPUT"
-
-      - name: Resolve release target
-        id: release_target
+      # 构建完成后，把最新版本同步进 version.json（app 检查更新的数据源）。
+      # 防循环：仅当 version.json 当前 version 落后于本次 tag 时才更新并推送。
+      - name: Sync version.json to release tag
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEW_VERSION: ${{ steps.release_target.outputs.package_version }}
         shell: bash
         run: |
-          BASE_TAG="v${PACKAGE_VERSION}"
-          if gh release view "${BASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-            # 同日已有版本,找最大 -N 后缀并递增（不过滤 pre-release，因为全部是 pre-release）
-            N=$(gh release list --repo "${GITHUB_REPOSITORY}" 2>/dev/null | grep -oE "v${PACKAGE_VERSION}-[0-9]+" | sed 's/.*-//' | sort -n | tail -1 || echo 0)
-            N=${N:-0}
-            RELEASE_TAG="${BASE_TAG}-$((N+1))"
-            RELEASE_NAME="${BASE_TAG}-$((N+1))"
+          NEW_VER="${NEW_VERSION}"
+          CUR_VER=$(node -p -e 'JSON.parse(require("fs").readFileSync("./publish/version.json","utf8")).version')
+          cmp() { node -e "const fix=s=>'.'+(s.toLowerCase().charCodeAt(0)-2147483647)+'.';const a=(''+'$1').replace(/[^0-9.]/g,fix).split('.'),b=(''+'$2').replace(/[^0-9.]/g,fix).split('.');let c=Math.max(a.length,b.length);for(let i=0;i<c;i++){a[i]=~~a[i];b[i]=~~b[i];if(a[i]>b[i]){process.exit(1)}if(a[i]<b[i]){process.exit(2)}}process.exit(0)"; }
+          cmp "$CUR_VER" "$NEW_VER"; RC=$?
+          if [ "$RC" = "1" ] || [ "$RC" = "0" ]; then
+            echo "version.json already >= ${NEW_VER}, skip"
+          elif [ "$RC" = "2" ]; then
+            node -e "const fs=require('fs');const f='./publish/version.json';const j=JSON.parse(fs.readFileSync(f,'utf8'));j.version='$NEW_VER';fs.writeFileSync(f,JSON.stringify(j,null,2)+'\n')"
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add publish/version.json
+            git commit -m "chore: bump version.json to ${NEW_VER}"
+            git push origin HEAD:main
+            echo "version.json updated to ${NEW_VER}"
           else
-            RELEASE_TAG="${BASE_TAG}"
-            RELEASE_NAME="${BASE_TAG}"
+            echo "compare failed (rc=$RC), skip"
           fi
-          # 始终以 pre-Release 发布,后续手动改为正式 Release
-          RELEASE_PRERELEASE="true"
-
-          echo "RELEASE_TAG=${RELEASE_TAG}" >> "$GITHUB_ENV"
-          echo "RELEASE_NAME=${RELEASE_NAME}" >> "$GITHUB_ENV"
-          echo "RELEASE_PRERELEASE=${RELEASE_PRERELEASE}" >> "$GITHUB_ENV"
-          echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
-          echo "release_name=${RELEASE_NAME}" >> "$GITHUB_OUTPUT"
-          echo "release_prerelease=${RELEASE_PRERELEASE}" >> "$GITHUB_OUTPUT"
 
       - name: Create git tag
+        env:
+          RELEASE_TAG_FOR_TAG: ${{ steps.release_target.outputs.release_tag }}
         shell: bash
         run: |
-          if git ls-remote --exit-code --tags origin "refs/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
-            echo "Tag ${RELEASE_TAG} already exists."
+          if git ls-remote --exit-code --tags origin "refs/tags/${RELEASE_TAG_FOR_TAG}" >/dev/null 2>&1; then
+            echo "Tag ${RELEASE_TAG_FOR_TAG} already exists."
           else
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git tag "${RELEASE_TAG}" "${GITHUB_SHA}"
-            git push origin "refs/tags/${RELEASE_TAG}"
+            git tag "${RELEASE_TAG_FOR_TAG}" "${GITHUB_SHA}"
+            git push origin "refs/tags/${RELEASE_TAG_FOR_TAG}"
           fi
 
       - name: Generate file MD5
@@ -97,7 +135,7 @@ jobs:
       - name: Upload Artifact
         uses: ./.github/actions/upload-artifact
         env:
-          PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
+          PACKAGE_VERSION: ${{ steps.release_target.outputs.package_version }}
 
 
   Release:
@@ -120,7 +158,7 @@ jobs:
         run: |
           awk 'BEGIN{RS="---"}{if(NR==1)print $0}' ./publish/changeLog.md > RELEASE_NOTES.md
           if [ "${{ needs.Android.outputs.release_tag }}" != "v${{ needs.Android.outputs.package_version }}" ]; then
-            echo -e '\n### Test Build\nThis is a same-day re-release with an incremental suffix (`${{ needs.Android.outputs.release_tag }}`), published as a prerelease.\n' >> RELEASE_NOTES.md
+            echo -e '\n### Test Build\nThis is a same-day incremental build with suffix (`${{ needs.Android.outputs.release_tag }}`).\n' >> RELEASE_NOTES.md
           fi
           echo -e '\n### File MD5\n```' >> RELEASE_NOTES.md
           cd artifacts
