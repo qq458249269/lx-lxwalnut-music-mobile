@@ -10,9 +10,9 @@ const abis = ['arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86', 'universal']
 const owner = (() => {
   try {
     const match = String(repository?.url || '').match(/github\.com\/([^/]+)\/[^/]+/)
-    return match ? match[1] : 'WalnutBai'
+    return match ? match[1] : 'qq458249269'
   } catch {
-    return 'WalnutBai'
+    return 'qq458249269'
   }
 })()
 
@@ -98,7 +98,7 @@ export const downloadNewVersion = async (version, onDownload = noop) => {
   // 同日重发版本带 -N 后缀，tag 用完整版本、APK 附件名用主版本（package.json 无后缀）
   const [mainVer] = String(version).split('-')
   const url = `https://github.com/${owner}/${name}/releases/download/v${version}/${name}-v${mainVer}-${abi}.apk`
-  let savePath = temporaryDirectoryPath + '/lx-netease-music-mobile.apk'
+  let savePath = temporaryDirectoryPath + '/lx-lxwalnut-music-mobile.apk'
 
   if (downloadJobId) stopDownload(downloadJobId)
 

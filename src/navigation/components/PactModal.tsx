@@ -19,9 +19,9 @@ import { repository } from '../../../package.json'
 const repoUrl = (() => {
   try {
     const match = String(repository?.url || '').match(/github\.com\/([^/]+\/[^/]+)/)
-    return match ? `https://github.com/${match[1]}` : 'https://github.com/souvenp/lx-netease-music-mobile'
+    return match ? `https://github.com/${match[1]}` : 'https://github.com/qq458249269/lx-lxwalnut-music-mobile'
   } catch {
-    return 'https://github.com/souvenp/lx-netease-music-mobile'
+    return 'https://github.com/qq458249269/lx-lxwalnut-music-mobile'
   }
 })()
 

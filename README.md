@@ -10,9 +10,9 @@
 
 <p align="center">一个基于 React Native 开发的音乐软件</p>
 
-> **注**: 这是在三方修改版 `lx-lxnetease-music-mobile` 基础上继续改造，仅供个人自用
+> **注**: 这是在上游 `lx-music-mobile` 基础上继续改造，仅供个人自用
 >
-> 官方地址: [lx-lxnetease-music-mobile](https://github.com/souvenp/lx-netease-music-mobile)
+> 上游地址: [lx-music-mobile](https://github.com/lyswhut/lx-music-mobile)
 
 > **注意**: 涉及同步、备份未充分测试，请自行备份重要文件
 
