@@ -17,9 +17,11 @@ runs:
         # 不在此缓存 gradle，改由 gradle/actions/setup-gradle 统一托管 build cache
 
     - name: Setup Gradle (build cache)
+      # 临时禁用 build cache，验证是否因缓存复用导致 JS 脏产物。确认后恢复缓存。
       uses: gradle/actions/setup-gradle@v4
       with:
         gradle-home-cache-cleanup: true
+        cache-read-only: true
 
     - name: Get npm cache directory
       id: npm-cache-dir
@@ -36,15 +38,9 @@ runs:
         restore-keys: |
           ${{ runner.os }}-npm-cache-
 
-    - name: Cache node_modules
-      id: cache-node-modules
-      uses: actions/cache@v5
-      with:
-        path: node_modules
-        key: ${{ runner.os }}-node_modules-${{ hashFiles('package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-node_modules-
-
+    # 必须每次 npm ci 干净重装：node_modules/Metro 缓存可能命中内容不一致的
+    # 旧快照，把不存在于源码的引用(如 "read property 'Home' of undefined")编进 JS。
+    # 不再缓存 node_modules，确保依赖与 package-lock.json 严格一致。
     - name: Install dependencies
       shell: bash
       run: npm ci
