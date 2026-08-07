@@ -15,18 +15,11 @@ import settingState from '@/store/setting/state'
 import { checkUpdate } from '@/core/version'
 import { bootLog } from '@/utils/bootLog'
 import { cheatTip } from '@/utils/tools'
-import { getAppVersionName } from '@/utils/nativeModules/utils'
 import * as networkLyric from '@/core/networkLyric'
 
 let isFirstPush = true
 const handlePushedHomeScreen = async () => {
   await cheatTip()
-  // 用 APK 真实 versionName（含 -N 后缀）覆盖 package.json 版本，
-  // 让设置页版本显示、更新比较与下载 URL 与实际安装版本一致
-  try {
-    const appVersionName = await getAppVersionName()
-    if (appVersionName) process.versions.app = appVersionName
-  } catch {}
   if (settingState.setting['common.isAgreePact']) {
     if (isFirstPush) {
       isFirstPush = false

@@ -74,7 +74,7 @@ const defaultSetting: LX.AppSetting = {
   'playDetail.horizontal.style.lrcFontSize': 220,
   'playDetail.landscapeImmersion.style.lrcFontSize': 240,
   'playDetail.landscapeImmersion.showControl': true,
-  'playDetail.visualizer.autoLandscape': true,
+  'playDetail.visualizer.autoLandscape': false,
   'playDetail.isShowLyricProgressSetting': true,
 
   'desktopLyric.enable': false,

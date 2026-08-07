@@ -5,19 +5,16 @@ export { tranditionalize as langS2T } from '@/utils/simplify-chinese-main'
 
 export * from './common'
 
-// 版本比较：按 . 分隔的数字段逐段比较，段长不足按 0 补齐。
-// 支持四段版本号（26.08.07.1 同日递增）。
+// https://stackoverflow.com/a/53387532
 export function compareVer(currentVer: string, targetVer: string): -1 | 0 | 1 {
+  // treat non-numerical characters as lower version
+  // replacing them with a negative number based on charcode of each character
+  const fix = (s: string) => `.${s.toLowerCase().charCodeAt(0) - 2147483647}.`
+
   const currentVerArr: Array<string | number> = ('' + currentVer)
-    .replace(/[^0-9]/g, ' ') // 非数字替换为空格，仅保留 . 分隔的纯数字段
-    .trim()
-    .split(/[. ]+/)
-    .filter(Boolean)
-  const targetVerArr: Array<string | number> = ('' + targetVer)
-    .replace(/[^0-9]/g, ' ')
-    .trim()
-    .split(/[. ]+/)
-    .filter(Boolean)
+    .replace(/[^0-9.]/g, fix)
+    .split('.')
+  const targetVerArr: Array<string | number> = ('' + targetVer).replace(/[^0-9.]/g, fix).split('.')
   let c = Math.max(currentVerArr.length, targetVerArr.length)
   for (let i = 0; i < c; i++) {
     // convert to integer the most efficient way

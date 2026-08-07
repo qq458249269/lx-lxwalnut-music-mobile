@@ -427,17 +427,5 @@ public class UtilsModule extends ReactContextBaseJavaModule {
     );
     promise.resolve(null);
   }
-
-  /** 返回 APK 的 versionName（含 -N 后缀），用于 app 内版本显示与更新比较 */
-  @ReactMethod
-  public void getAppVersionName(Promise promise) {
-    try {
-      String versionName = reactContext.getPackageManager()
-          .getPackageInfo(reactContext.getPackageName(), 0).versionName;
-      promise.resolve(versionName == null ? "" : versionName);
-    } catch (Exception e) {
-      promise.reject("Utils", "getAppVersionName failed", e);
-    }
-  }
 }
 

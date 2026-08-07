@@ -1,85 +1,60 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect } from 'react'
 import { View } from 'react-native'
-import { Navigation } from 'react-native-navigation'
 import { useHorizontalMode } from '@/utils/hooks'
 import { useSettingValue } from '@/store/setting/hook'
 
 import Vertical from './Vertical'
 import Horizontal from './Horizontal'
 import LandscapeImmersion from './LandscapeImmersion'
-import Visualizer from './Visualizer'
+import VisualizerPlayer from './Visualizer/VisualizerPlayer'
 import PageContent from '@/components/PageContent'
 import StatusBar from '@/components/common/StatusBar'
 import { setComponentId } from '@/core/common'
 import { COMPONENT_IDS } from '@/config/constant'
 import { useIsLandscapeImmersion } from '@/store/common/hook'
+import { stop, handlePlay } from '@/core/player/player'
+import { getPosition, setCurrentTime } from '@/plugins/player/utils'
 
 export default ({ componentId }: { componentId: string }) => {
   const isHorizontalMode = useHorizontalMode()
   const isLandscapeImmersion = useIsLandscapeImmersion()
   const autoLandscapeVisualizer = useSettingValue('playDetail.visualizer.autoLandscape')
-  // 横屏自动进律动：进入时锁横屏，退出时锁回竖屏（设备会旋回竖屏）。用 state 而非 ref 驱动抑制，
-  // 这样退出后立即 re-render 會生效（ref 不會觸發 re-render，會導致横屏仍在時 showVisualizer 即刻為 true 重進）。
-  const [visualizerActive, setVisualizerActive] = useState(false)
-  // 用户手动退出后抑制自动进入，直到旋回竖屏清除
-  const [visualizerSuppressed, setVisualizerSuppressed] = useState(false)
 
   useEffect(() => {
     setComponentId(COMPONENT_IDS.playDetail, componentId)
   }, [])
 
-  // 设备旋回竖屏后延迟清除抑制，避免旋转动画期间尺寸抖动触发重进
-  const suppressResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  // 横屏且开启自动律动时进入全屏律动，并锁横屏
-  const showVisualizer = isHorizontalMode && autoLandscapeVisualizer && !visualizerActive && !visualizerSuppressed
-
+  const visualizerAsFullPage = isHorizontalMode && autoLandscapeVisualizer
+  // 横屏整页 Web 可视化时接管音频：挂载记录 native 进度并停 RN 播放器，卸载续播
   useEffect(() => {
-    if (showVisualizer) {
-      setVisualizerActive(true)
-      Navigation.mergeOptions(componentId, {
-        layout: { orientation: ['landscape'] },
-      } as any)
-    }
-  }, [showVisualizer, componentId])
-
-  // 设备旋回竖屏：自動退出律動 + 延迟清除抑制（去抖，避免旋转抖动期重进）
-  const wasLandscape = useRef(false)
-  useEffect(() => {
-    if (isHorizontalMode) {
-      wasLandscape.current = true
-    } else if (wasLandscape.current) {
-      wasLandscape.current = false
-      setVisualizerActive(false)
-      // 延迟清除抑制：确认横屏已稳定再允许下次自动进入
-      if (suppressResetTimer.current) clearTimeout(suppressResetTimer.current)
-      suppressResetTimer.current = setTimeout(() => {
-        setVisualizerSuppressed(false)
-        suppressResetTimer.current = null
-      }, 500)
-    }
+    if (!visualizerAsFullPage) return
+    void (async () => {
+      try {
+        global.lx.visualizerResumePos = await getPosition()
+      } catch {
+        global.lx.visualizerResumePos = 0
+      }
+      void stop()
+    })()
     return () => {
-      if (suppressResetTimer.current) clearTimeout(suppressResetTimer.current)
+      const pos = global.lx.visualizerLastPos
+      global.lx.visualizerResumePos = 0
+      global.lx.visualizerLastPos = 0
+      void (async () => {
+        if (pos > 0) {
+          try { await setCurrentTime(pos) } catch {}
+        }
+        void handlePlay()
+      })()
     }
-  }, [isHorizontalMode])
-
-  // 退出律动：释放频谱由 Visualizer 内部处理，这里锁回竖屏回到详情；並抑制橫屏時立刻重进。
-  // 三个操作天然幂等（重复执行无害），不做父级幂等拦截——
-  // 否则与子级 handleExit 的 exitedRef 形成双幂等死锁，导致第一次点退出无效。
-  const exitVisualizer = useCallback(() => {
-    setVisualizerSuppressed(true)
-    setVisualizerActive(false)
-    Navigation.mergeOptions(componentId, {
-      layout: { orientation: ['portrait'] },
-    } as any)
-  }, [componentId])
+  }, [visualizerAsFullPage])
 
   if (isLandscapeImmersion) {
     return <LandscapeImmersion componentId={componentId} />
   }
 
-  if (visualizerActive) {
-    return <Visualizer key="embedded-visualizer" componentId={componentId} onExit={exitVisualizer} embedded />
+  if (visualizerAsFullPage) {
+    return <VisualizerPlayer />
   }
 
   return (
