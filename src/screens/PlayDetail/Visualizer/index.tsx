@@ -1,5 +1,5 @@
-import { memo, useEffect, useRef } from 'react'
-import { View, StatusBar, BackHandler, AppState } from 'react-native'
+import { memo, useCallback, useEffect, useRef } from 'react'
+import { View, StatusBar, BackHandler, AppState, TouchableOpacity } from 'react-native'
 import { Navigation } from 'react-native-navigation'
 import { setComponentId, removeComponentId } from '@/core/common'
 import { COMPONENT_IDS } from '@/config/constant'
@@ -7,9 +7,12 @@ import { createStyle } from '@/utils/tools'
 import { stop, handlePlay } from '@/core/player/player'
 import { getPosition, setCurrentTime } from '@/plugins/player/utils'
 import { screenkeepAwake, screenUnkeepAwake } from '@/utils/nativeModules/utils'
+import { useTheme } from '@/store/theme/hook'
+import { Icon } from '@/components/common/Icon'
 import VisualizerPlayer, { type VisualizerPlayerHandle } from './VisualizerPlayer'
 
 export default memo(({ componentId }: { componentId: string }) => {
+  const theme = useTheme()
   const playerRef = useRef<VisualizerPlayerHandle>(null)
   const resumePosRef = useRef(0)
 
@@ -57,35 +60,60 @@ export default memo(({ componentId }: { componentId: string }) => {
     }
   }, [])
 
+  // 退出律动页：停 Web 音频、回传进度、恢复 native 续播，再 pop
+  const handleExit = useCallback(() => {
+    playerRef.current?.stop((resumePos) => {
+      global.lx.visualizerResumePos = 0
+      global.lx.visualizerLastPos = 0
+      void (async () => {
+        if (resumePos > 0 && resumePos !== resumePosRef.current) {
+          try { await setCurrentTime(resumePos) } catch {}
+        }
+        void handlePlay()
+      })()
+    })
+    // 稍后触发 pop，确保组件卸载前 Web 音频已停
+    setTimeout(() => {
+      Navigation.pop(componentId)
+    }, 350)
+  }, [componentId])
+
   useEffect(() => {
     const onBackPress = () => {
-      // 先在 WebView 仍挂载时主动停掉 Web 音频并异步拿回播放进度
-      playerRef.current?.stop((resumePos) => {
-        global.lx.visualizerResumePos = 0
-        global.lx.visualizerLastPos = 0
-        void (async () => {
-          if (resumePos > 0 && resumePos !== resumePosRef.current) {
-            try { await setCurrentTime(resumePos) } catch {}
-          }
-          void handlePlay()
-        })()
-      })
-      // pop 稍后触发，确保组件卸载前 Web 音频已停
-      setTimeout(() => {
-        Navigation.pop(componentId)
-      }, 350)
+      handleExit()
       return true
     }
     const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress)
     return () => sub.remove()
-  }, [componentId])
+  }, [handleExit])
 
   return (
     <View style={s.root}>
       <StatusBar hidden />
       <VisualizerPlayer ref={playerRef} />
+      <TouchableOpacity
+        onPress={handleExit}
+        style={s.exitBtn}
+        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        accessibilityLabel="exit visualizer"
+      >
+        <Icon name="chevron-left" size={24} color={theme['c-primary-font']} />
+      </TouchableOpacity>
     </View>
   )
 })
 
-const s = createStyle({ root: { flex: 1, backgroundColor: '#000' } })
+const s = createStyle({
+  root: { flex: 1, backgroundColor: '#000' },
+  exitBtn: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+})
