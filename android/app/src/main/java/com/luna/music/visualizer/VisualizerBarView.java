@@ -39,9 +39,10 @@ public class VisualizerBarView extends View {
   private final Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
   private final Paint mTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
-  // FFT 采样
-  private final int mCaptureRate = Visualizer.getMaxCaptureRate() > 0
-      ? Math.min(Visualizer.getMaxCaptureRate(), 30000) : 30000; // Hz，限制 30fps
+  // FFT 采样 rate：getMaxCaptureRate() 部分设备返回 0，需下限兜底，否则 setDataCaptureListener(0) 抛异常
+  private static final int MAX_CAPTURE_RATE = Visualizer.getMaxCaptureRate() > 0
+      ? Visualizer.getMaxCaptureRate() : 20000;
+  private final int mCaptureRate = Math.min(MAX_CAPTURE_RATE, 30000); // Hz，取 min(系统上限, 30fps)
   private final float[] mLevels = new float[BUCKETS];
   private final float[] mSmoothed = new float[BUCKETS];
   private final float[] mWave = new float[BUCKETS];

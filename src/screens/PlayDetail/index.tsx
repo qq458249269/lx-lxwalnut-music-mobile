@@ -20,13 +20,15 @@ export default ({ componentId }: { componentId: string }) => {
   const autoLandscapeVisualizer = useSettingValue('playDetail.visualizer.autoLandscape')
   // 横屏自动进律动：进入时锁横屏，退出时锁回竖屏（设备会旋回竖屏）
   const [visualizerActive, setVisualizerActive] = useState(false)
+  // 用户手动退出后抑制自动进入，直到设备旋回竖屏再清除（否则横屏点退出会立即重进律动）
+  const suppressVisualizer = useRef(false)
 
   useEffect(() => {
     setComponentId(COMPONENT_IDS.playDetail, componentId)
   }, [])
 
   // 横屏且开启自动律动时进入全屏律动，并锁横屏
-  const showVisualizer = isHorizontalMode && autoLandscapeVisualizer && !visualizerActive
+  const showVisualizer = isHorizontalMode && autoLandscapeVisualizer && !visualizerActive && !suppressVisualizer.current
 
   useEffect(() => {
     if (showVisualizer) {
@@ -37,7 +39,7 @@ export default ({ componentId }: { componentId: string }) => {
     }
   }, [showVisualizer, componentId])
 
-  // 设备转回竖屏时自动退出律动（不需要点退出按钮）
+  // 设备转回竖屏时自动退出律动（不需要点退出按钮），并清除抑制，允许下次横屏再自动进入
   const wasLandscape = useRef(false)
   useEffect(() => {
     if (isHorizontalMode) {
@@ -45,11 +47,13 @@ export default ({ componentId }: { componentId: string }) => {
     } else if (wasLandscape.current) {
       wasLandscape.current = false
       setVisualizerActive(false)
+      suppressVisualizer.current = false
     }
   }, [isHorizontalMode])
 
-  // 退出律动：释放频谱由 Visualizer 内部处理，这里锁回竖屏回到详情
+  // 退出律动：释放频谱由 Visualizer 内部处理，这里锁回竖屏回到详情；并抑制横屏时立刻重进
   const exitVisualizer = () => {
+    suppressVisualizer.current = true
     setVisualizerActive(false)
     Navigation.mergeOptions(componentId, {
       layout: { orientation: ['portrait'] },

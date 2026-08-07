@@ -43,32 +43,26 @@ jobs:
         run: |
           BASE_VERSION=$(node -p -e 'require("./package.json").version')
           BASE_TAG="v${BASE_VERSION}"
-          if gh release view "${BASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-            # 同日已有版本：只统计正式 Release（忽略 pre-release 与 draft），找最大 .N 后缀并递增
-            N=$(BASE_VER="${BASE_VERSION}" gh release list --repo "${GITHUB_REPOSITORY}" --json tagName,isPrerelease,isDraft 2>/dev/null | BASE_VER="${BASE_VERSION}" node -e '
-              let s="";
-              const pref="v"+process.env.BASE_VER+".";
-              process.stdin.on("data",d=>s+=d).on("end",()=>{
-                let maxN=0;
-                try{
-                  const arr=JSON.parse(s);
-                  maxN=arr.reduce((acc,r)=>{
-                    // 只统计正式 Release：忽略 pre-release 与 draft，避免同日递增被干扰
-                    if(r.isPrerelease||r.isDraft) return acc;
-                    if(r.tagName.startsWith(pref)){ const n=parseInt(r.tagName.slice(pref.length)); if(!Number.isNaN(n) && n>acc) return n; }
-                    return acc;
-                  },0);
-                }catch(e){}
-                console.log(maxN);
-              })
-            ')
-            N=${N:-0}
-            RELEASE_TAG="${BASE_TAG}.$((N+1))"
-            RELEASE_NAME="${BASE_TAG}.$((N+1))"
-          else
-            RELEASE_TAG="${BASE_TAG}"
-            RELEASE_NAME="${BASE_TAG}"
-          fi
+          # 始终用 list 计算同日 .N 递增（避免区分「已有基础 tag 还是仅 .N」，pre/Release 共用序列，忽略 draft）
+          N=$(BASE_VER="${BASE_VERSION}" gh release list --repo "${GITHUB_REPOSITORY}" --json tagName,isPrerelease,isDraft 2>/dev/null | BASE_VER="${BASE_VERSION}" node -e '
+            let s="";
+            const pref="v"+process.env.BASE_VER+".";
+            process.stdin.on("data",d=>s+=d).on("end",()=>{
+              let maxN=0;
+              try{
+                const arr=JSON.parse(s);
+                maxN=arr.reduce((acc,r)=>{
+                  if(r.isDraft) return acc; // 忽略 draft；正式 Release 与 pre-release 共用递增序列
+                  if(r.tagName.startsWith(pref)){ const n=parseInt(r.tagName.slice(pref.length)); if(!Number.isNaN(n) && n>acc) return n; }
+                  return acc;
+                },0);
+              }catch(e){}
+              console.log(maxN);
+            })
+          ')
+          N=${N:-0}
+          RELEASE_TAG="${BASE_TAG}.$((${N}+1))"
+          RELEASE_NAME="${BASE_TAG}.$((${N}+1))"
           RELEASE_PRERELEASE="true"
 
           # 把完整版本号（含 .N）写进 package.json.version，下游（Gradle versionName/APK 名/下载 URL）自动统一
