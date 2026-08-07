@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
-import { View, StatusBar, BackHandler, AppState, TouchableOpacity, PermissionsAndroid, Linking, Text } from 'react-native'
+import { View, StatusBar, BackHandler, AppState, TouchableOpacity, PermissionsAndroid, Linking, Text, StyleSheet } from 'react-native'
 import { Navigation } from 'react-native-navigation'
 import { setComponentId, removeComponentId } from '@/core/common'
 import { COMPONENT_IDS } from '@/config/constant'
@@ -9,6 +9,8 @@ import { screenkeepAwake, screenUnkeepAwake } from '@/utils/nativeModules/utils'
 import { useTheme } from '@/store/theme/hook'
 import { Icon } from '@/components/common/Icon'
 import VisualizerPlayer, { type VisualizerPlayerHandle } from './VisualizerPlayer'
+import Pic from '@/screens/PlayDetail/LandscapeImmersion/Pic'
+import Lyric from '@/screens/PlayDetail/LandscapeImmersion/Lyric'
 
 // Native 音乐播放器的 audio session id。
 // fork 无 getAudioSessionId 时返回 0，native 侧用系统全局 session(Visualizer(0)) 捕获本 app 输出频谱。
@@ -53,6 +55,13 @@ export default memo(({ componentId, onExit, embedded = false }: Props) => {
   const theme = useTheme()
   const playerRef = useRef<VisualizerPlayerHandle>(null)
   const [sessionId, setSessionId] = useState(-1)
+  const [mode, setMode] = useState<0 | 1>(0)
+
+  const toggleMode = useCallback(() => {
+    const next: 0 | 1 = mode === 0 ? 1 : 0
+    setMode(next)
+    playerRef.current?.setMode(next)
+  }, [mode])
 
   useEffect(() => {
     if (embedded) return
@@ -114,7 +123,21 @@ export default memo(({ componentId, onExit, embedded = false }: Props) => {
   return (
     <View style={s.root}>
       <StatusBar hidden />
+      {/* 频谱背景层（全屏） */}
       <VisualizerPlayer ref={playerRef} audioSessionId={sessionId} />
+      {/* 半透明遮罩：保证歌词/封面可读 */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <View style={s.overlay} />
+      </View>
+      {/* 内容层：左封面 右歌词 */}
+      <View style={s.content} pointerEvents="box-none">
+        <View style={s.left}>
+          <Pic />
+        </View>
+        <View style={s.right}>
+          <Lyric />
+        </View>
+      </View>
       {permissionDenied && (
         <View style={s.permDenied}>
           <Text style={s.permDeniedText}>律动模式需要麦克风权限来分析音频频谱</Text>
@@ -126,6 +149,14 @@ export default memo(({ componentId, onExit, embedded = false }: Props) => {
           </TouchableOpacity>
         </View>
       )}
+      <TouchableOpacity
+        onPress={toggleMode}
+        style={s.modeBtn}
+        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        accessibilityLabel="toggle visualizer mode"
+      >
+        <Icon name={mode === 0 ? 'slider' : 'lyric-on'} size={24} color={theme['c-primary-font']} />
+      </TouchableOpacity>
       <TouchableOpacity
         onPress={handleExit}
         style={s.exitBtn}
@@ -150,6 +181,37 @@ const s = createStyle({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.4)',
+    zIndex: 10,
+  },
+  modeBtn: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    zIndex: 10,
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  content: {
+    ...StyleSheet.absoluteFillObject,
+    flexDirection: 'row',
+  },
+  left: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  right: {
+    flex: 1,
+    position: 'relative',
   },
   permDenied: {
     position: 'absolute',
