@@ -15,21 +15,22 @@ import Lyric from './Lyric'
 import Player from './Player'
 import NativeVisualizerPlayer from '../Visualizer/NativeVisualizerPlayer'
 import { useIsPlay } from '@/store/player/hook'
+import { useSettingValue } from '@/store/setting/hook'
 import { createStyle } from '@/utils/tools'
 import { marginLeftRaw } from './constant'
 import { useStatusbarHeight } from '@/store/common/hook'
 // import MoreBtn from './MoreBtn2'
 
-export default memo(({ componentId, rhythmSessionId, rhythmEnabled = false }: {
+export default memo(({ componentId }: {
   componentId: string
-  /** 可选：原生律动 audio session id（不传则组件内部从 TrackPlayer 获取） */
-  rhythmSessionId?: number
-  /** 横屏是否显示原生律动背景 */
-  rhythmEnabled?: boolean
 }) => {
   const statusBarHeight = useStatusbarHeight()
   // 律动只在播放时激活：暂停/停止时 native detach，避免频谱挂载干扰音频
   const isPlay = useIsPlay()
+  // 律动设置（详情页右上角设置弹窗控制）
+  const rhythmEnabled = useSettingValue('playDetail.visualizer.autoLandscape')
+  const rhythmMode = useSettingValue('playDetail.visualizer.mode')
+  const rhythmOpacity = useSettingValue('playDetail.visualizer.opacity')
   const showRhythm = rhythmEnabled && isPlay
 
   useEffect(() => {
@@ -68,7 +69,8 @@ export default memo(({ componentId, rhythmSessionId, rhythmEnabled = false }: {
         {showRhythm && (
           <NativeVisualizerPlayer
             style={styles.rhythmBg}
-            audioSessionId={rhythmSessionId}
+            mode={rhythmMode as 0 | 1}
+            opacity={rhythmOpacity}
             active={isPlay}
           />
         )}

@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
 import { View } from 'react-native'
 import { useHorizontalMode } from '@/utils/hooks'
-import { useSettingValue } from '@/store/setting/hook'
 
 import Vertical from './Vertical'
 import Horizontal from './Horizontal'
@@ -15,7 +14,6 @@ import { useIsLandscapeImmersion } from '@/store/common/hook'
 export default ({ componentId }: { componentId: string }) => {
   const isHorizontalMode = useHorizontalMode()
   const isLandscapeImmersion = useIsLandscapeImmersion()
-  const autoLandscapeVisualizer = useSettingValue('playDetail.visualizer.autoLandscape')
 
   useEffect(() => {
     setComponentId(COMPONENT_IDS.playDetail, componentId)
@@ -29,7 +27,7 @@ export default ({ componentId }: { componentId: string }) => {
     <PageContent>
       <StatusBar />
       {isHorizontalMode ? (
-        <Horizontal componentId={componentId} rhythmEnabled={autoLandscapeVisualizer} />
+        <Horizontal componentId={componentId} />
       ) : (
         <Vertical componentId={componentId} />
       )}

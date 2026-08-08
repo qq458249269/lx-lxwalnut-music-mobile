@@ -260,6 +260,16 @@ declare global {
       'playDetail.visualizer.autoLandscape': boolean
 
       /**
+       * 播放详情页-律动形态（0=柱状 1=波形）
+       */
+      'playDetail.visualizer.mode': number
+
+      /**
+       * 播放详情页-律动背景透明度
+       */
+      'playDetail.visualizer.opacity': number
+
+      /**
        * 是否启用桌面歌词
        */
       'desktopLyric.enable': boolean

@@ -35,6 +35,8 @@ export default memo(({ componentId }: { componentId: string }) => {
   const isPlay = useIsPlay()
   // 竖屏律动受「横屏自动律动」开关控制（诊断用：关掉开关可对比是否律动导致音频报错）
   const rhythmEnabled = useSettingValue('playDetail.visualizer.autoLandscape')
+  const rhythmMode = useSettingValue('playDetail.visualizer.mode')
+  const rhythmOpacity = useSettingValue('playDetail.visualizer.opacity')
   const showRhythm = rhythmEnabled && isPlay
 
   const onPageSelected = ({ nativeEvent }: PagerViewOnPageSelectedEvent) => {
@@ -83,7 +85,12 @@ export default memo(({ componentId }: { componentId: string }) => {
       <View style={styles.container}>
         {/* 竖屏原生律动背景：封面/歌词叠在频谱之上；仅开关开启且播放时激活 */}
         {showRhythm && (
-          <NativeVisualizerPlayer style={styles.rhythmBg} active={isPlay} />
+          <NativeVisualizerPlayer
+            style={styles.rhythmBg}
+            mode={rhythmMode as 0 | 1}
+            opacity={rhythmOpacity}
+            active={isPlay}
+          />
         )}
         <PagerView
           onPageSelected={onPageSelected}

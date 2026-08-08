@@ -1,5 +1,5 @@
 import { memo, forwardRef, useImperativeHandle, useRef, useState, useEffect } from 'react'
-import { View } from 'react-native'
+import { View, StyleProp, ViewStyle } from 'react-native'
 import { requireNativeComponent } from 'react-native'
 import { createStyle } from '@/utils/tools'
 import TrackPlayer from 'react-native-track-player'
@@ -16,24 +16,29 @@ export interface NativeVisualizerPlayerHandle {
 }
 
 const NativeVisualizerPlayer = memo(forwardRef<NativeVisualizerPlayerHandle, {
-  style?: object
+  style?: StyleProp<ViewStyle>
   /** 可选：外部指定 session id（>0）。不传则内部从 TrackPlayer 获取真实 session */
   audioSessionId?: number
+  /** 律动形态：0=柱状 1=波形 */
+  mode?: 0 | 1
+  /** 律动背景透明度 0~1 */
+  opacity?: number
   active?: boolean
-}>(({ style, audioSessionId, active = true }, ref) => {
-  const [mode, setMode] = useState<0 | 1>(0)
-  // 真实 session id：优先外部传入，否则挂载时从 TrackPlayer 获取
-  const [sessionId, setSessionId] = useState(audioSessionId ?? -1)
+}>(({ style, audioSessionId, mode: modeProp, opacity, active = true }, ref) => {
+  // 形态：优先外部 prop（设置控制），否则组件内部状态
+  const [innerMode, setInnerMode] = useState<0 | 1>(0)
   const togglerRef = useRef<0 | 1>(0)
-  togglerRef.current = mode
+  togglerRef.current = modeProp ?? innerMode
 
   useImperativeHandle(ref, () => ({
     exit: () => { /* native 在 active=false / sessionId<=0 时自动 detach */ },
-    setMode: (m) => { setMode(m); togglerRef.current = m },
+    setMode: (m) => { setInnerMode(m); togglerRef.current = m },
   }), [])
 
+  // 真实 session id：优先外部传入，否则挂载时从 TrackPlayer 获取
+  const [sessionId, setSessionId] = useState(audioSessionId ?? -1)
+
   useEffect(() => {
-    // 外部未指定 session 时，从 TrackPlayer 拿真实 audio session id（patch 暴露，只读）
     if (audioSessionId == null) {
       let cancelled = false
       void (async () => {
@@ -50,9 +55,11 @@ const NativeVisualizerPlayer = memo(forwardRef<NativeVisualizerPlayerHandle, {
     }
   }, [audioSessionId])
 
+  const mode = modeProp ?? innerMode
+
   // 未进入时无数采；退出时 active=false，native detach Visualizer
   return (
-    <View style={[s.root, style]}>
+    <View style={[s.root, opacity != null ? { opacity } : null, style]}>
       {sessionId >= 0 && (
         <VisualizerBarView
           style={s.view}
