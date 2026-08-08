@@ -47,14 +47,14 @@ jobs:
           RELEASE_TAG="v${NEXT_VERSION}"
 
           if gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-            # tag 已存在（如并发重跑）：后缀区分，避免同名 tag 冲突，发布为预发布
+            # tag 已存在（如并发重跑）：后缀区分，避免同名 tag 冲突
             RELEASE_TAG="${RELEASE_TAG}-test.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
             RELEASE_NAME="${NEXT_VERSION} test ${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
-            RELEASE_PRERELEASE="true"
           else
             RELEASE_NAME="${RELEASE_TAG}"
-            RELEASE_PRERELEASE="false"
           fi
+          # 统一发 Pre-release
+          RELEASE_PRERELEASE="true"
 
           node -e "const fs=require('fs');const f='./package.json';const j=JSON.parse(fs.readFileSync(f,'utf8'));const {versionCodeOf}=require('./publish/utils/bump-version.cjs');j.version='${NEXT_VERSION}';j.versionCode=versionCodeOf('${NEXT_VERSION}');fs.writeFileSync(f,JSON.stringify(j,null,2)+'\n')"
 
