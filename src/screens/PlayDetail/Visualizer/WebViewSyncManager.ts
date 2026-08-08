@@ -90,7 +90,8 @@ export class WebViewSyncManager {
     const listId = playerState.playMusicInfo?.listId
     const item = this.playlist[newIndex]
     if (!listId || !item) return
-    // 切歌时无需改动：startTime 按「songId === visualizerEnterSongId」匹配，新歌自然为 0
+    // 切歌后一律从头播放：清掉进入时的续播进度，避免「上一首」回到进入时那首又续播其进度
+    global.lx.visualizerResumePos = 0
     this.lastDispatchedId = ''
     this.markSwitchStart(item.id)
     try {

@@ -16,7 +16,7 @@ import { useIsLandscapeImmersion } from '@/store/common/hook'
 import { lxmHeadlessServer } from '@/core/visualizer/LxmHeadlessServer'
 import playerState from '@/store/player/state'
 import { stop, handlePlay } from '@/core/player/player'
-import { getPosition, setCurrentTime } from '@/plugins/player/utils'
+import { getPosition } from '@/plugins/player/utils'
 import { Icon } from '@/components/common/Icon'
 import { createStyle } from '@/utils/tools'
 
@@ -59,24 +59,20 @@ export default ({ componentId }: { componentId: string }) => {
       // 卸载兜底：仅当未走手动退出（如被其他方式关闭）时恢复 native 续播
       if (manualExitRef.current) return
       const curSongId = global.lx.visualizerWebSongId || global.lx.visualizerEnterSongId
-      void (async () => {
-        const pos = global.lx.visualizerLastPos || global.lx.visualizerResumePos || 0
-        global.lx.visualizerResumePos = 0
-        global.lx.visualizerLastPos = 0
-        global.lx.visualizerEnterSongId = ''
-        global.lx.visualizerWebSongId = ''
-        if (pos > 0 && playerState.playMusicInfo?.musicInfo?.id === curSongId) {
-          try { await setCurrentTime(pos) } catch {}
-        }
-        void handlePlay()
-      })()
+      const pos = global.lx.visualizerLastPos || global.lx.visualizerResumePos || 0
+      global.lx.visualizerResumePos = 0
+      global.lx.visualizerLastPos = 0
+      global.lx.visualizerEnterSongId = ''
+      global.lx.visualizerWebSongId = ''
+      playerState.progress.nowPlayTime = curSongId && playerState.playMusicInfo?.musicInfo?.id === curSongId && pos > 0 ? pos : 0
+      void handlePlay()
     }
   }, [visualizerAsFullPage])
 
   // 退出律动：停 Web 流 → 拿回 Web 实时进度 → 同曲则 seek 续播 → 回到详情（Horizontal/Vertical）。
   // 不 pop 页面——PlayDetail 就是详情页，退出律动只应停掉全屏律动覆盖。
   const exitVisualizer = () => {
-    // 律动内最后播的歌：切过歌则同步该歌 + 进度；未切则回退进入时的歌
+    // 律动内最后播的歌：切过歌则切歌该歌 + 进度；未切则回退进入时的歌
     const curSongId = global.lx.visualizerWebSongId || global.lx.visualizerEnterSongId
     const resumeBase = global.lx.visualizerResumePos
     playerRef.current?.stop((resumePos) => {
@@ -85,13 +81,10 @@ export default ({ componentId }: { componentId: string }) => {
       global.lx.visualizerLastPos = 0
       global.lx.visualizerEnterSongId = ''
       global.lx.visualizerWebSongId = ''
-      void (async () => {
-        // 退出后普通模式续播律动最后播的歌：native playMusicInfo 已同步为该歌，同曲才 seek
-        if (pos > 0 && playerState.playMusicInfo?.musicInfo?.id === curSongId) {
-          try { await setCurrentTime(pos) } catch {}
-        }
-        void handlePlay()
-      })()
+      // 普通模式续播律动最后播的歌：先设播放起点，再 handlePlay 让其加载该曲并 seek 续播
+      // （不可在歌曲未加载时 setCurrentTime——TrackPlayer 尚未就绪会丢进度）
+      playerState.progress.nowPlayTime = curSongId && playerState.playMusicInfo?.musicInfo?.id === curSongId && pos > 0 ? pos : 0
+      void handlePlay()
     })
     manualExitRef.current = true
     setSuppressAutoVisualizer(true)
@@ -116,15 +109,18 @@ export default ({ componentId }: { componentId: string }) => {
   if (visualizerAsFullPage) {
     return (
       <View style={s.full}>
-        <VisualizerPlayer ref={playerRef} style={s.player} />
-        <TouchableOpacity
-          onPress={exitVisualizer}
-          style={s.exitBtn}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          accessibilityLabel="exit visualizer"
-        >
-          <Icon name="chevron-left" size={22} color="#fff" />
-        </TouchableOpacity>
+        <StatusBar />
+        <View style={s.playerWrap}>
+          <VisualizerPlayer ref={playerRef} style={s.player} />
+          <TouchableOpacity
+            onPress={exitVisualizer}
+            style={s.exitBtn}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityLabel="exit visualizer"
+          >
+            <Icon name="chevron-left" size={22} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
     )
   }
@@ -143,6 +139,12 @@ export default ({ componentId }: { componentId: string }) => {
 
 const s = createStyle({
   full: { flex: 1, backgroundColor: '#000' },
+  playerWrap: {
+    flex: 1,
+    position: 'relative',
+    // 保留系统状态栏：内容从状态栏下方开始
+    paddingTop: StatusBar.currentHeight,
+  },
   player: { flex: 1 },
   exitBtn: {
     position: 'absolute',

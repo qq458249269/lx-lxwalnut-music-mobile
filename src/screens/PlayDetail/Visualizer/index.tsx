@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useRef } from 'react'
-import { View, StatusBar, BackHandler, AppState, TouchableOpacity } from 'react-native'
+import { View, BackHandler, AppState, TouchableOpacity } from 'react-native'
+import StatusBar from '@/components/common/StatusBar'
 import { Navigation } from 'react-native-navigation'
 import { setComponentId, removeComponentId } from '@/core/common'
 import { COMPONENT_IDS } from '@/config/constant'
@@ -7,7 +8,7 @@ import { createStyle } from '@/utils/tools'
 import playerState from '@/store/player/state'
 import { lxmHeadlessServer } from '@/core/visualizer/LxmHeadlessServer'
 import { stop, handlePlay } from '@/core/player/player'
-import { getPosition, setCurrentTime } from '@/plugins/player/utils'
+import { getPosition } from '@/plugins/player/utils'
 import { Icon } from '@/components/common/Icon'
 import { screenkeepAwake, screenUnkeepAwake } from '@/utils/nativeModules/utils'
 import VisualizerPlayer, { type VisualizerPlayerHandle } from './VisualizerPlayer'
@@ -61,32 +62,24 @@ export default memo(({ componentId }: { componentId: string }) => {
       global.lx.visualizerLastPos = 0
       global.lx.visualizerEnterSongId = ''
       global.lx.visualizerWebSongId = ''
-      void (async () => {
-        // 退出后普通模式续播律动最后播的歌，同曲才 seek
-        if (pos > 0 && pos !== resumePosRef.current && playerState.playMusicInfo?.musicInfo?.id === curSongId) {
-          try { await setCurrentTime(pos) } catch {}
-        }
-        void handlePlay()
-      })()
+      // 普通模式续播律动最后播的歌：设播放起点后 handlePlay 加载并 seek
+      playerState.progress.nowPlayTime = curSongId && playerState.playMusicInfo?.musicInfo?.id === curSongId && pos > 0 && pos !== resumePosRef.current ? pos : 0
+      void handlePlay()
     }
   }, [])
 
   // 退出律动：停 Web 音频 → 拿回进度 → 同曲则续播 → pop 律动页
   const exitVisualizer = useCallback(() => {
-    // 律动内最后播的歌：切过歌则同步该歌 + 进度；未切则回退进入时的歌
+    // 律动内最后播的歌：切过歌则切到该歌 + 进度；未切则回退进入时的歌
     const curSongId = global.lx.visualizerWebSongId || global.lx.visualizerEnterSongId
     playerRef.current?.stop((resumePos) => {
       global.lx.visualizerResumePos = 0
       global.lx.visualizerLastPos = 0
       global.lx.visualizerEnterSongId = ''
       global.lx.visualizerWebSongId = ''
-      void (async () => {
-        // 退出后普通模式续播律动最后播的歌：native playMusicInfo 已同步为该歌，同曲才 seek
-        if (resumePos > 0 && resumePos !== resumePosRef.current && playerState.playMusicInfo?.musicInfo?.id === curSongId) {
-          try { await setCurrentTime(resumePos) } catch {}
-        }
-        void handlePlay()
-      })()
+      // 普通模式续播律动最后播的歌：设播放起点后 handlePlay 加载并 seek（不可先 seek 未加载的歌）
+      playerState.progress.nowPlayTime = curSongId && playerState.playMusicInfo?.musicInfo?.id === curSongId && resumePos > 0 && resumePos !== resumePosRef.current ? resumePos : 0
+      void handlePlay()
     })
     setTimeout(() => {
       Navigation.pop(componentId)
@@ -103,7 +96,7 @@ export default memo(({ componentId }: { componentId: string }) => {
 
   return (
     <View style={s.root}>
-      <StatusBar hidden />
+      <StatusBar />
       <VisualizerPlayer ref={playerRef} />
       {/* 左上角退出按钮：与系统返回同一逻辑（停流/续进度/离开律动） */}
       <TouchableOpacity
@@ -119,7 +112,12 @@ export default memo(({ componentId }: { componentId: string }) => {
 })
 
 const s = createStyle({
-  root: { flex: 1, backgroundColor: '#000' },
+  root: {
+    flex: 1,
+    backgroundColor: '#000',
+    // 保留系统状态栏：内容从状态栏下方开始，避免全屏遮住
+    paddingTop: StatusBar.currentHeight,
+  },
   exitBtn: {
     position: 'absolute',
     top: 12,
