@@ -54,15 +54,16 @@ export default memo(({ componentId }: { componentId: string }) => {
       void stop()
     })()
     return () => {
-      // 卸载兜底：若未走 onBackPress（如被其他方式关闭），恢复 native 续播
+      // 卸载兜底：若未走退出逻辑（如被其他方式关闭），恢复 native 续播
+      const curSongId = global.lx.visualizerWebSongId || global.lx.visualizerEnterSongId
       const pos = global.lx.visualizerLastPos
-      const enterSongId = global.lx.visualizerEnterSongId
       global.lx.visualizerResumePos = 0
       global.lx.visualizerLastPos = 0
       global.lx.visualizerEnterSongId = ''
+      global.lx.visualizerWebSongId = ''
       void (async () => {
-        // 仅当退出时仍在播进入律动时的同一首歌才恢复进度，避免误解到别的歌的进度
-        if (pos > 0 && pos !== resumePosRef.current && playerState.playMusicInfo?.musicInfo?.id === enterSongId) {
+        // 退出后普通模式续播律动最后播的歌，同曲才 seek
+        if (pos > 0 && pos !== resumePosRef.current && playerState.playMusicInfo?.musicInfo?.id === curSongId) {
           try { await setCurrentTime(pos) } catch {}
         }
         void handlePlay()
@@ -72,13 +73,16 @@ export default memo(({ componentId }: { componentId: string }) => {
 
   // 退出律动：停 Web 音频 → 拿回进度 → 同曲则续播 → pop 律动页
   const exitVisualizer = useCallback(() => {
+    // 律动内最后播的歌：切过歌则同步该歌 + 进度；未切则回退进入时的歌
+    const curSongId = global.lx.visualizerWebSongId || global.lx.visualizerEnterSongId
     playerRef.current?.stop((resumePos) => {
-      const enterSongId = global.lx.visualizerEnterSongId
       global.lx.visualizerResumePos = 0
       global.lx.visualizerLastPos = 0
+      global.lx.visualizerEnterSongId = ''
+      global.lx.visualizerWebSongId = ''
       void (async () => {
-        // 仅当退出时仍在播进入律动时的同一首歌才恢复进度
-        if (resumePos > 0 && resumePos !== resumePosRef.current && playerState.playMusicInfo?.musicInfo?.id === enterSongId) {
+        // 退出后普通模式续播律动最后播的歌：native playMusicInfo 已同步为该歌，同曲才 seek
+        if (resumePos > 0 && resumePos !== resumePosRef.current && playerState.playMusicInfo?.musicInfo?.id === curSongId) {
           try { await setCurrentTime(resumePos) } catch {}
         }
         void handlePlay()

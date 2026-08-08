@@ -58,13 +58,14 @@ export default ({ componentId }: { componentId: string }) => {
     return () => {
       // 卸载兜底：仅当未走手动退出（如被其他方式关闭）时恢复 native 续播
       if (manualExitRef.current) return
-      const enterSongId = global.lx.visualizerEnterSongId
+      const curSongId = global.lx.visualizerWebSongId || global.lx.visualizerEnterSongId
       void (async () => {
         const pos = global.lx.visualizerLastPos || global.lx.visualizerResumePos || 0
         global.lx.visualizerResumePos = 0
         global.lx.visualizerLastPos = 0
         global.lx.visualizerEnterSongId = ''
-        if (pos > 0 && playerState.playMusicInfo?.musicInfo?.id === enterSongId) {
+        global.lx.visualizerWebSongId = ''
+        if (pos > 0 && playerState.playMusicInfo?.musicInfo?.id === curSongId) {
           try { await setCurrentTime(pos) } catch {}
         }
         void handlePlay()
@@ -75,16 +76,18 @@ export default ({ componentId }: { componentId: string }) => {
   // 退出律动：停 Web 流 → 拿回 Web 实时进度 → 同曲则 seek 续播 → 回到详情（Horizontal/Vertical）。
   // 不 pop 页面——PlayDetail 就是详情页，退出律动只应停掉全屏律动覆盖。
   const exitVisualizer = () => {
-    const enterSongId = global.lx.visualizerEnterSongId
+    // 律动内最后播的歌：切过歌则同步该歌 + 进度；未切则回退进入时的歌
+    const curSongId = global.lx.visualizerWebSongId || global.lx.visualizerEnterSongId
     const resumeBase = global.lx.visualizerResumePos
     playerRef.current?.stop((resumePos) => {
       const pos = resumePos || resumeBase || 0
       global.lx.visualizerResumePos = 0
       global.lx.visualizerLastPos = 0
       global.lx.visualizerEnterSongId = ''
+      global.lx.visualizerWebSongId = ''
       void (async () => {
-        // 仅当退出时仍在播进入律动时的同一首歌才恢复进度
-        if (pos > 0 && playerState.playMusicInfo?.musicInfo?.id === enterSongId) {
+        // 退出后普通模式续播律动最后播的歌：native playMusicInfo 已同步为该歌，同曲才 seek
+        if (pos > 0 && playerState.playMusicInfo?.musicInfo?.id === curSongId) {
           try { await setCurrentTime(pos) } catch {}
         }
         void handlePlay()

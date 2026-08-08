@@ -189,6 +189,8 @@ export class WebViewSyncManager {
       if (!pMusicInfo) { wb('Dispatch', 'pMusicInfo 为空，跳过'); return }
       const uiId = pMusicInfo.id || ''
       if (this.expectedSongId && uiId !== this.expectedSongId) { wb('Dispatch', 'songId 不匹配', { expected: this.expectedSongId, actual: uiId }); return }
+      // 记录律动内当前播的歌，退出时以它为准同步回普通模式
+      global.lx.visualizerWebSongId = uiId
 
       // 续播进度只对进入律动时的那首歌生效：歌未变才用，否则 0（新歌从头）
       let startTime = 0
