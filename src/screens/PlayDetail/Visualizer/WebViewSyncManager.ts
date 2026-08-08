@@ -34,6 +34,31 @@ export class WebViewSyncManager {
     this.loadPlayMode()
   }
 
+  /**
+   * 注入音频 error 上报：WebView 音频加载/播放失败时 postMessage 通知 RN（原 bundle 无此上报）。
+   * 用于诊断「刚切换时播放失败」并驱动重试降级。
+   */
+  patchAudioErrorReporter() {
+    try {
+      this.webViewRef.current?.injectJavaScript(`(function(){
+        try {
+          var __a = document.querySelector('audio');
+          if(!__a || __a.__stErrPatched) { return; }
+          __a.__stErrPatched = true;
+          __a.addEventListener('error', function(){
+            try {
+              window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
+                type:'audioError',
+                code: __a.error ? __a.error.code : -1,
+                message: __a.error ? __a.error.message : ('network='+(__a.networkState||-1))
+              }));
+            } catch(e){}
+          });
+        } catch(e){}
+      })()`)
+    } catch {}
+  }
+
   addSyncCallback(cb: SyncCallback) { this.syncCallbacks.push(cb) }
 
   activate() {}
@@ -65,8 +90,7 @@ export class WebViewSyncManager {
     const listId = playerState.playMusicInfo?.listId
     const item = this.playlist[newIndex]
     if (!listId || !item) return
-    // 切歌时清空进入时的续播进度，新歌从 0 开始（避免沿用旧曲进度）
-    global.lx.visualizerResumePos = 0
+    // 切歌时无需改动：startTime 按「songId === visualizerEnterSongId」匹配，新歌自然为 0
     this.lastDispatchedId = ''
     this.markSwitchStart(item.id)
     try {
@@ -102,7 +126,10 @@ export class WebViewSyncManager {
 
   setReady(ready: boolean) {
     lxmHeadlessServer.setReady(ready)
-    if (ready) this.syncCallbacks.forEach(cb => cb('ready', {}))
+    if (ready) {
+      this.patchAudioErrorReporter()
+      this.syncCallbacks.forEach(cb => cb('ready', {}))
+    }
   }
 
   private getNextIndex(direction: 'next' | 'prev'): number {
@@ -141,6 +168,7 @@ export class WebViewSyncManager {
         case 'playMode': this.setPlayMode(data.mode || 'listLoop'); break
         case 'needTrackData': wb('Msg', 'WebView needTrackData'); if (!this.isSwitchingTrack) this.dispatch(); break
         case 'exitSync': this.deactivate(); break
+        case 'audioError': wb('AudioError', 'WebView 音频播放失败', { code: data.code, message: data.message }); break
         default: wb('Msg', '未知消息', { type: data.type })
       }
       this.syncCallbacks.forEach(cb => cb(data.type, data))
@@ -162,9 +190,17 @@ export class WebViewSyncManager {
       const uiId = pMusicInfo.id || ''
       if (this.expectedSongId && uiId !== this.expectedSongId) { wb('Dispatch', 'songId 不匹配', { expected: this.expectedSongId, actual: uiId }); return }
 
+      // 续播进度只对进入律动时的那首歌生效：歌未变才用，否则 0（新歌从头）
+      let startTime = 0
+      if (global.lx.visualizerResumePos > 0 && uiId === global.lx.visualizerEnterSongId) {
+        startTime = global.lx.visualizerResumePos
+      }
+      wb('Dispatch', '计算 startTime', { startTime, songId: uiId, enterSongId: global.lx.visualizerEnterSongId })
+
       wb('Dispatch', '获取数据', { id: uiId, name: pMusicInfo.name })
       const [url, lrc] = await Promise.all([
-        lxmHeadlessServer.getSongUrl(),
+        // 优先用进入律动时预取的 URL（已缓存），仅当缓存对应同一首时有效；切歌后回退现拉
+        lxmHeadlessServer.getPrewarmedUrl(uiId) || lxmHeadlessServer.getSongUrl(),
         lxmHeadlessServer.getLrc(),
       ])
       wb('Dispatch', '数据获取完成', { urlLen: url?.length || 0, lrcLen: lrc?.length || 0, isReady: (lxmHeadlessServer as any).isReady })
@@ -180,7 +216,7 @@ export class WebViewSyncManager {
         id: uiId, title: pMusicInfo.name || '', singer: pMusicInfo.singer || '',
         url, pic: pMusicInfo.meta?.picUrl || '',
         duration: this.parseInterval(pMusicInfo.interval), album: pMusicInfo.meta?.albumName || '',
-        startTime: global.lx.visualizerResumePos || 0,
+        startTime,
         volume: playerState.volume || 1,
         lrc: lrc || '',
       })
@@ -189,6 +225,8 @@ export class WebViewSyncManager {
         lxmHeadlessServer.send('loadPlaylist', { list, currentIndex: this.currentIndex })
       }
       lxmHeadlessServer.send('playMode', { mode: this.playMode })
+      // loadAndPlay 已创建 audio，此时注入 error 上报补丁
+      this.patchAudioErrorReporter()
       wb('Dispatch', '所有消息已发送')
     } finally {
       this.dispatchLock = false

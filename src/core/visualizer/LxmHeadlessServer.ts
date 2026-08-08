@@ -23,6 +23,8 @@ class LxmHeadlessServer {
   private isReady = false
   private pendingMessages: string[] = []
   private proxyPort = -1
+  private prewarmedUrl = ''
+  private prewarmSongId = ''
 
   setWebViewRef(ref: React.RefObject<any>) { this.webViewRef = ref }
 
@@ -88,6 +90,31 @@ class LxmHeadlessServer {
   }
 
   private static QUALITY_FALLBACK = ['320k', '128k'] as const
+
+  /**
+   * 预取当前歌曲的音频 URL 到缓存，避免进入律动后 WebView 才开始拉流导致首帧无缓冲播放失败。
+   * getSongUrl 内部有 URL 缓存，prewarm 后 dispatch 直接命中缓存，秒级出流。
+   */
+  async prewarm() {
+    const pMusicInfo = (playerState.playMusicInfo as any)?.musicInfo
+    const id = pMusicInfo?.id || ''
+    if (!id || id === this.prewarmSongId) return
+    wb('Prewarm', '开始预取', { id })
+    this.prewarmSongId = id
+    try {
+      this.prewarmedUrl = await this.getSongUrl()
+      wb('Prewarm', '预取完成', { urlLen: this.prewarmedUrl?.length || 0 })
+    } catch (e: any) {
+      this.prewarmedUrl = ''
+      wb('Prewarm', '预取失败', { error: e?.message })
+    }
+  }
+
+  /** 返回预取 URL，仅当预取所对应的歌曲未变时才有效；切歌后返回空串（回退现拉） */
+  getPrewarmedUrl(songId?: string) {
+    if (songId && songId !== this.prewarmSongId) return ''
+    return this.prewarmedUrl
+  }
 
   async getSongUrl(): Promise<string> {
     const pMusicInfo = (playerState.playMusicInfo as any)?.musicInfo

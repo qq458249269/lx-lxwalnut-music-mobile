@@ -68,6 +68,17 @@ interface GlobalData {
    * 退出 Web 可视化时 WebView 上报的当前播放进度(秒)，供 native 续播
    */
   visualizerLastPos: number
+
+  /**
+   * 进入 Web 律动模式时 native 正在播放的歌曲 id；
+   * 退出时只有当前播放歌曲仍是这首才恢复进度（避免切歌后误把别的歌曲进度塞过来）
+   */
+  visualizerEnterSongId: string
+
+  /**
+   * 退出过律动：置位后同一详情页实例不再自动进入（横屏 auto），下次新实例（从首页进入）重置
+   */
+  visualizerExited: boolean
 }
 interface Artist {
   id: string | number;
