@@ -4,6 +4,7 @@ const pkgDir = '../../package.json'
 const pkg = require(pkgDir)
 const version = require('../version.json')
 const chalk = require('chalk')
+const { computeNextVersionLocal, todayVersion } = require('./bump-version.cjs')
 const pkg_bak = JSON.stringify(pkg, null, 2)
 const version_bak = JSON.stringify(version, null, 2)
 const parseChangelog = require('changelog-parser')
@@ -24,9 +25,8 @@ const updateChangeLog = async (newVerNum, newChangeLog) => {
 
 module.exports = async (newVerNum) => {
   if (!newVerNum) {
-    let verArr = pkg.version.split('.')
-    verArr[verArr.length - 1] = parseInt(verArr[verArr.length - 1]) + 1
-    newVerNum = verArr.join('.')
+    let { pkgVersion, version } = require('../version.json')
+    newVerNum = computeNextVersionLocal(pkg?.version || pkgVersion, todayVersion())
   }
   const newMDChangeLog = fs.readFileSync(jp('../changeLog.md'), 'utf-8')
   version.history.unshift({
@@ -36,7 +36,7 @@ module.exports = async (newVerNum) => {
   version.version = newVerNum
   version.desc = newMDChangeLog.replace(/(?:^|(\n))#{1,6} (.+)\n/g, '$1$2').trim()
   pkg.version = newVerNum
-  // versionCode 由 version（YY.MM.DD）推导，单一来源；同日重复发版 code 相同（覆盖安装）
+  // versionCode 由 version（YY.MM.DD[.N]）推导，单一来源；带 .N 时 code 也递增，同日多包互不覆盖
   pkg.versionCode = parseInt(newVerNum.replace(/\./g, ''))
 
   console.log(chalk.blue('new version: ') + chalk.green(newVerNum))

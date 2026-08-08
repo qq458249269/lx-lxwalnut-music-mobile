@@ -1,0 +1,115 @@
+/**
+ * 版本号递增规则（唯一来源）
+ * 格式：YY.MM.DD（首日） / YY.MM.DD.N（同日递增末位）
+ * 同日已有非 draft 的发布 → 末位 .N 递增；新日期 → 回到裸日期。
+ */
+const pad = (n) => String(n).padStart(2, '0')
+
+/** 当前日期基版本：new Date() -> '26.08.08' */
+const todayVersion = (date = new Date()) => {
+  const yy = String(date.getFullYear()).slice(-2)
+  const mm = pad(date.getMonth() + 1)
+  const dd = pad(date.getDate())
+  return `${yy}.${mm}.${dd}`
+}
+
+/** 提取版本前三位日期段：'26.08.08.1' -> '26.08.08'；不合法返回 null */
+const datePart = (ver) => {
+  const m = /^(\d{1,2})\.(\d{1,2})\.(\d{1,2})/.exec(String(ver || ''))
+  return m ? `${m[1]}.${m[2]}.${m[3]}` : null
+}
+
+/** 纯数字段比较：1 a>b / -1 a<b / 0 equal（语义与 app 内 compareVer 一致） */
+const compareVer = (a, b) => {
+  const fa = String(a).split('.').map((s) => parseInt(s, 10))
+  const fb = String(b).split('.').map((s) => parseInt(s, 10))
+  const c = Math.max(fa.length, fb.length)
+  for (let i = 0; i < c; i++) {
+    const x = fa[i] || 0
+    const y = fb[i] || 0
+    if (x > y) return 1
+    if (x < y) return -1
+  }
+  return 0
+}
+
+/** versionCode 由版本号去点推得：'26.08.08.1' -> 2608081 */
+const versionCodeOf = (ver) => parseInt(String(ver).replace(/\./g, ''), 10)
+
+/**
+ * 计算下一次发布版本号。
+ * @param {string} current 当前 package.json version
+ * @param {Array<{tagName:string,isDraft?:boolean}>} tags 已存在的 Release tag（GhAPI 输出）
+ * @param {string} today 日期基版本，默认当天
+ * @returns {string} 下次版本：裸日期 或 同日 N 递增
+ */
+const computeNextVersion = (current, tags = [], today = todayVersion()) => {
+  const base = datePart(current) === today ? today : today
+  let maxN = -1
+  let hasBase = false
+  for (const t of tags) {
+    const tv = String(t.tagName || t).replace(/^v/, '')
+    if (t.isDraft) continue
+    if (tv === base) {
+      hasBase = true
+      if (maxN < 0) maxN = 0
+      continue
+    }
+    const m = new RegExp(`^${base.replace(/\./g, '\\.')}\\.(\\d+)$`).exec(tv)
+    if (m) {
+      const n = parseInt(m[1], 10)
+      hasBase = true
+      if (n > maxN) maxN = n
+    }
+  }
+  return hasBase ? `${base}.${maxN + 1}` : base
+}
+
+const selfTest = () => {
+  const assert = (cond, msg) => {
+    if (!cond) throw new Error('bump-version self-test failed: ' + msg)
+  }
+  const t = '26.08.08'
+  assert(todayVersion(new Date(2026, 7, 8)) === '26.08.08', 'todayVersion')
+  assert(datePart('26.08.08.1') === '26.08.08', 'datePart')
+  assert(datePart('bad') === null, 'datePart bad')
+  assert(compareVer('26.08.08', '26.08.08.1') === -1, 'compare lt')
+  assert(compareVer('26.08.08.3', '26.08.08.1') === 1, 'compare gt')
+  assert(compareVer('26.08.08.1', '26.08.8.1') === 0, 'compare pad eq (08==8)')
+  assert(versionCodeOf('26.08.08.1') === 2608081, 'versionCode 4seg')
+  assert(versionCodeOf('26.08.08') === 260808, 'versionCode 3seg')
+  // 未发布过的日期：裸日期
+  assert(computeNextVersion('26.08.07', [], t) === '26.08.08', 'day rollover')
+  // 同一天首个：裸日期
+  assert(computeNextVersion('26.08.08', [], t) === '26.08.08', 'first of day bare')
+  // 同日已发裸版：-> .1
+  assert(computeNextVersion('26.08.08', [{ tagName: 'v26.08.08' }], t) === '26.08.08.1', 'bare base -> .1')
+  // 同日已有 .1：-> .2
+  assert(computeNextVersion('26.08.08.1', [{ tagName: 'v26.08.08.1', isDraft: false }], t) === '26.08.08.2', 'increment')
+  // draft 忽略：只看非 draft，maxN=1 -> .2
+  assert(computeNextVersion('26.08.08.2', [{ tagName: 'v26.08.08.1' }, { tagName: 'v26.08.08.2', isDraft: true }], t) === '26.08.08.2', 'draft ignored')
+  // pre-release 计入：maxN=7 -> .8
+  assert(
+    computeNextVersion('26.08.08.7', [{ tagName: 'v26.08.08.7', isPrerelease: true }], t) === '26.08.08.8',
+    'prerelease counts'
+  )
+  console.log('bump-version self-test OK')
+}
+
+/**
+ * 本地发布用：无 GitHub API 场景（npm run publish）。
+ * 同日 → 从当前版本末位 N+1；跨日 → 今天裸日期；同日首个（3 段）→ .1。
+ */
+const computeNextVersionLocal = (current, today = todayVersion()) => {
+  const base = datePart(current)
+  return base === today ? `${today}.${(datePartWidthIncrement(current) || 0) + 1}` : today
+}
+
+const datePartWidthIncrement = (current) => {
+  const m = /^(\d{1,2})\.(\d{1,2})\.(\d{1,2})\.(\d+)$/.exec(String(current || ''))
+  return m ? parseInt(m[4], 10) : 0
+}
+
+module.exports = { todayVersion, datePart, compareVer, versionCodeOf, computeNextVersion, computeNextVersionLocal }
+
+if (require.main === module && process.argv.includes('--self-test')) selfTest()

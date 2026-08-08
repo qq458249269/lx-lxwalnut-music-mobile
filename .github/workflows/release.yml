@@ -4,18 +4,66 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'publish/version.json'
 
 jobs:
+  Version:
+    name: Version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      next_version: ${{ steps.resolve.outputs.next_version }}
+      release_tag: ${{ steps.resolve.outputs.release_tag }}
+      release_name: ${{ steps.resolve.outputs.release_name }}
+      release_prerelease: ${{ steps.resolve.outputs.release_prerelease }}
+    steps:
+      - name: Check out git repository
+        uses: actions/checkout@v5
+
+      - name: Compute next version
+        id: resolve
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          BASE_VERSION=$(node -p -e 'require("./package.json").version')
+          gh release list --repo "${GITHUB_REPOSITORY}" --limit 100 --json tagName,isDraft,isPrerelease > /tmp/tags.json || echo '[]' > /tmp/tags.json
+          NEXT_VERSION=$(BASE_VERSION="${BASE_VERSION}" TAGS_JSON="/tmp/tags.json" node -p -e 'const {computeNextVersion,todayVersion}=require("./publish/utils/bump-version.cjs");let tags=[];try{tags=JSON.parse(require("fs").readFileSync(process.env.TAGS_JSON,"utf8"))}catch(e){};computeNextVersion(process.env.BASE_VERSION,tags,todayVersion())')
+          RELEASE_TAG="v${NEXT_VERSION}"
+
+          if gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            # tag 已存在（如并发重跑）：后缀区分，避免同名 tag 冲突，发布为预发布
+            RELEASE_TAG="${RELEASE_TAG}-test.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
+            RELEASE_NAME="${NEXT_VERSION} test ${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
+            RELEASE_PRERELEASE="true"
+          else
+            RELEASE_NAME="${RELEASE_TAG}"
+            RELEASE_PRERELEASE="false"
+          fi
+
+          echo "NEXT_VERSION=${NEXT_VERSION}" >> "$GITHUB_ENV"
+          echo "next_version=${NEXT_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "release_name=${RELEASE_NAME}" >> "$GITHUB_OUTPUT"
+          echo "release_prerelease=${RELEASE_PRERELEASE}" >> "$GITHUB_OUTPUT"
+
+      - name: Inject version & versionCode
+        shell: bash
+        run: |
+          node -e "const fs=require('fs');const f='./package.json';const j=JSON.parse(fs.readFileSync(f,'utf8'));const {versionCodeOf}=require('./publish/utils/bump-version.cjs');j.version='${NEXT_VERSION}';j.versionCode=versionCodeOf('${NEXT_VERSION}');fs.writeFileSync(f,JSON.stringify(j,null,2)+'\n')"
+
   Android:
     name: Android
     runs-on: ubuntu-latest
     permissions:
       contents: write
     outputs:
-      package_version: ${{ steps.package_version.outputs.package_version }}
-      release_tag: ${{ steps.release_target.outputs.release_tag }}
-      release_name: ${{ steps.release_target.outputs.release_name }}
-      release_prerelease: ${{ steps.release_target.outputs.release_prerelease }}
+      package_version: ${{ needs.Version.outputs.next_version }}
+      release_tag: ${{ needs.Version.outputs.release_tag }}
+      release_name: ${{ needs.Version.outputs.release_name }}
+      release_prerelease: ${{ needs.Version.outputs.release_prerelease }}
     steps:
       - name: Check out git repository
         uses: actions/checkout@v5
@@ -34,6 +82,7 @@ jobs:
       - name: Build Packages
         env:
           DISABLE_SVG: 1
+          PACKAGE_VERSION: ${{ needs.Version.outputs.next_version }}
         shell: bash
         run: |
           cd android
@@ -42,48 +91,18 @@ jobs:
           ./gradlew assembleRelease -PMYAPP_UPLOAD_STORE_FILE='${{ secrets.MYAPP_UPLOAD_STORE_FILE }}' -PMYAPP_UPLOAD_KEY_ALIAS='${{ secrets.MYAPP_UPLOAD_KEY_ALIAS }}' -PMYAPP_UPLOAD_STORE_PASSWORD='${{ secrets.MYAPP_UPLOAD_STORE_PASSWORD }}' -PMYAPP_UPLOAD_KEY_PASSWORD='${{ secrets.MYAPP_UPLOAD_KEY_PASSWORD }}'
           rm -f app/${{ secrets.MYAPP_UPLOAD_STORE_FILE }}
 
-      - name: Get package version
-        id: package_version
-        shell: bash
-        run: |
-          PACKAGE_VERSION=$(node -p -e 'require("./package.json").version')
-          echo "PACKAGE_VERSION=${PACKAGE_VERSION}" >> "$GITHUB_ENV"
-          echo "package_version=${PACKAGE_VERSION}" >> "$GITHUB_OUTPUT"
-
-      - name: Resolve release target
-        id: release_target
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          BASE_TAG="v${PACKAGE_VERSION}"
-          if gh release view "${BASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-            RELEASE_TAG="${BASE_TAG}-test.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
-            RELEASE_NAME="${BASE_TAG} test ${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
-            RELEASE_PRERELEASE="true"
-          else
-            RELEASE_TAG="${BASE_TAG}"
-            RELEASE_NAME="${BASE_TAG}"
-            RELEASE_PRERELEASE="false"
-          fi
-
-          echo "RELEASE_TAG=${RELEASE_TAG}" >> "$GITHUB_ENV"
-          echo "RELEASE_NAME=${RELEASE_NAME}" >> "$GITHUB_ENV"
-          echo "RELEASE_PRERELEASE=${RELEASE_PRERELEASE}" >> "$GITHUB_ENV"
-          echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
-          echo "release_name=${RELEASE_NAME}" >> "$GITHUB_OUTPUT"
-          echo "release_prerelease=${RELEASE_PRERELEASE}" >> "$GITHUB_OUTPUT"
-
       - name: Create git tag
+        env:
+          RELEASE_TAG_FOR_TAG: ${{ needs.Version.outputs.release_tag }}
         shell: bash
         run: |
-          if git ls-remote --exit-code --tags origin "refs/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
-            echo "Tag ${RELEASE_TAG} already exists."
+          if git ls-remote --exit-code --tags origin "refs/tags/${RELEASE_TAG_FOR_TAG}" >/dev/null 2>&1; then
+            echo "Tag ${RELEASE_TAG_FOR_TAG} already exists."
           else
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git tag "${RELEASE_TAG}" "${GITHUB_SHA}"
-            git push origin "refs/tags/${RELEASE_TAG}"
+            git tag "${RELEASE_TAG_FOR_TAG}" "${GITHUB_SHA}"
+            git push origin "refs/tags/${RELEASE_TAG_FOR_TAG}"
           fi
 
       - name: Generate file MD5
@@ -94,13 +113,43 @@ jobs:
       - name: Upload Artifact
         uses: ./.github/actions/upload-artifact
         env:
-          PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
+          PACKAGE_VERSION: ${{ needs.Version.outputs.next_version }}
 
+  Sync:
+    name: Sync
+    runs-on: ubuntu-latest
+    needs:
+      - Version
+      - Android
+    permissions:
+      contents: write
+    steps:
+      - name: Check out git repository
+        uses: actions/checkout@v5
+
+      - name: Sync version.json to release tag
+        env:
+          NEW_VERSION: ${{ needs.Version.outputs.next_version }}
+        shell: bash
+        run: |
+          node -e "const {compareVer}=require('./publish/utils/bump-version.cjs');const fs=require('fs');const f='./publish/version.json';const v=JSON.parse(fs.readFileSync(f,'utf8'));if(compareVer('${NEW_VERSION}',v.version||'')>0){v.version='${NEW_VERSION}';fs.writeFileSync(f,JSON.stringify(v,null,2)+'\n')}else{console.log('version.json already >= ${NEW_VERSION}, skip')}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add publish/version.json
+          if git diff --cached --quiet; then
+            echo "No version change, skip commit."
+          else
+            git commit -m "chore: bump version.json to ${NEW_VERSION}"
+            git push origin HEAD:main
+            echo "version.json updated to ${NEW_VERSION}"
+          fi
 
   Release:
     name: Release
     runs-on: ubuntu-latest
-    needs: [Android]
+    needs:
+      - Android
+      - Sync
     permissions:
       contents: write
     steps:
@@ -116,9 +165,6 @@ jobs:
       - name: Generate release body
         run: |
           awk 'BEGIN{RS="---"}{if(NR==1)print $0}' ./publish/changeLog.md > RELEASE_NOTES.md
-          if [ "${{ needs.Android.outputs.release_prerelease }}" = "true" ]; then
-            echo -e '\n### Test Build\nThis prerelease was generated because release `${{ needs.Android.outputs.package_version }}` already exists.\n' >> RELEASE_NOTES.md
-          fi
           echo -e '\n### File MD5\n```' >> RELEASE_NOTES.md
           cd artifacts
           md5sum *.apk >> ../RELEASE_NOTES.md
@@ -129,12 +175,12 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v3
         with:
-          name: ${{ needs.Android.outputs.release_name }}
+          name: ${{ needs.Version.outputs.release_name }}
           body_path: RELEASE_NOTES.md
-          prerelease: ${{ needs.Android.outputs.release_prerelease }}
+          prerelease: ${{ needs.Version.outputs.release_prerelease }}
           draft: false
-          tag_name: ${{ needs.Android.outputs.release_tag }}
+          tag_name: ${{ needs.Version.outputs.release_tag }}
           files: |
-            artifacts/lx-lxwalnut-music-mobile-v${{ needs.Android.outputs.package_version }}-arm64-v8a.apk
+            artifacts/lx-lxwalnut-music-mobile-v${{ needs.Version.outputs.package_version }}-arm64-v8a.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
