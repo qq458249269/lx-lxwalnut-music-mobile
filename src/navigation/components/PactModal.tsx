@@ -13,13 +13,14 @@ import { updateSetting } from '@/core/common'
 import { checkUpdate } from '@/core/version'
 import { initDeeplink } from '@/core/init/deeplink'
 import settingState from '@/store/setting/state'
+import { repository } from '../../../package.json'
+
+const openHomePage = () => {
+  void openUrl(`${repository.url.replace(/^git\+/, '').replace(/\.git$/, '')}#readme`)
+}
 
 const Content = () => {
   const theme = useTheme()
-
-  const openHomePage = () => {
-    void openUrl('https://github.com/souvenp/lx-netease-music-mobile#readme')
-  }
   const openLicensePage = () => {
     void openUrl('http://www.apache.org/licenses/LICENSE-2.0')
   }
