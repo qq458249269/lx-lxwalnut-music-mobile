@@ -15,10 +15,12 @@ export default () => {
   const enabled = useSettingValue('playDetail.visualizer.autoLandscape');
   const mode = useSettingValue('playDetail.visualizer.mode');
   const opacity = useSettingValue('playDetail.visualizer.opacity');
+  const threeD = useSettingValue('playDetail.visualizer.threeD');
 
   const setEnabled = (v: boolean) => updateSetting({ 'playDetail.visualizer.autoLandscape': v });
   const setMode = (m: number) => updateSetting({ 'playDetail.visualizer.mode': m });
   const setOpacity = (v: number) => updateSetting({ 'playDetail.visualizer.opacity': v });
+  const setThreeD = (v: boolean) => updateSetting({ 'playDetail.visualizer.threeD': v });
 
   return (
     <>
@@ -45,6 +47,15 @@ export default () => {
                 check={mode === 1}
                 label={t('play_detail_setting_visualizer_mode_wave')}
                 onChange={() => setMode(1)}
+              />
+            </View>
+          </View>
+          <View style={styles.container}>
+            <View style={styles.content}>
+              <CheckBox
+                check={threeD}
+                label={t('play_detail_setting_visualizer_3d')}
+                onChange={setThreeD}
               />
             </View>
           </View>

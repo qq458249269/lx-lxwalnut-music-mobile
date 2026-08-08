@@ -77,6 +77,7 @@ const defaultSetting: LX.AppSetting = {
   'playDetail.visualizer.autoLandscape': false,
   'playDetail.visualizer.mode': 0,
   'playDetail.visualizer.opacity': 0.3,
+  'playDetail.visualizer.threeD': true,
   'playDetail.isShowLyricProgressSetting': true,
 
   'desktopLyric.enable': false,

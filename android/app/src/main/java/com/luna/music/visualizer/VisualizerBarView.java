@@ -2,6 +2,7 @@ package com.luna.music.visualizer;
 
 import android.content.Context;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.Shader;
@@ -12,7 +13,10 @@ import android.util.AttributeSet;
 import android.util.Log;
 import android.view.View;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
 
 /**
  * 原生律动可视化 View：音频频谱柱状图/波形
@@ -52,6 +56,19 @@ public class VisualizerBarView extends View {
   // 平滑
   private final float mSmoothFactor = 0.65f;
   private final float mDecay = 0.9f;
+
+  // 3D 透视 + 粒子
+  private boolean mThreeD = true;
+  private final Paint mParticlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+  // 粒子
+  private static class Particle {
+    float x, y, vx, vy, size, alpha, decay;
+    float r, g, b;
+  }
+  private final List<Particle> mParticles = new ArrayList<>(256);
+  private static final int MAX_PARTICLES = 256;
+  private long mLastFrameTime = System.currentTimeMillis();
 
   private HandlerThread mCaptureThread = null;
 
@@ -239,12 +256,20 @@ public class VisualizerBarView extends View {
     Arrays.fill(mLevels, 0f);
     Arrays.fill(mSmoothed, 0f);
     Arrays.fill(mWave, 0f);
+    mParticles.clear();
     postInvalidate();
   }
 
   public void setMode(int mode) {
     mMode = mode;
     Arrays.fill(mSmoothed, 0f);
+    postInvalidate();
+  }
+
+  /** 3D 透视 + 粒子开关：关则回退平面柱状 */
+  public void setThreeD(boolean threeD) {
+    mThreeD = threeD;
+    if (!threeD) mParticles.clear();
     postInvalidate();
   }
 
@@ -264,6 +289,11 @@ public class VisualizerBarView extends View {
     }
     if (mMode == MODE_WAVE) {
       drawWave(canvas);
+    } else if (mThreeD) {
+      drawBars3D(canvas);
+      // 粒子叠加在 3D 柱状之上
+      updateParticles();
+      drawParticles(canvas);
     } else {
       drawBars(canvas);
     }
@@ -315,6 +345,110 @@ public class VisualizerBarView extends View {
       canvas.drawRect(left, midY - barH / 2f, left + barW, midY + barH / 2f, mPaint);
     }
     mPaint.setShader(null);
+  }
+
+  /** 透视 3D 柱状：中间近两侧远，近大远小 + 底部汇聚，柱顶高光 */
+  private void drawBars3D(Canvas canvas) {
+    int w = getWidth();
+    int h = getHeight();
+    if (w <= 0 || h <= 0) return;
+
+    float gap = w * 0.006f;
+    float baseBarW = (w - gap * (BUCKETS - 1)) / BUCKETS;
+    // 地平线：底部汇聚线（略高于底边，留出纵深空间）
+    float horizonY = h * 0.78f;
+
+    // 深度映射：中间(近)深度 1.0，两侧(远)深度 0.55，形成弧面隧道
+    float[] depth = new float[BUCKETS];
+    for (int i = 0; i < BUCKETS; i++) {
+      float t = 2f * i / (BUCKETS - 1) - 1f; // -1..1
+      depth[i] = 0.55f + 0.45f * (1f - Math.abs(t));
+    }
+
+    for (int i = 0; i < BUCKETS; i++) {
+      // 平滑上升、慢衰减
+      float target = mLevels[i];
+      if (target > mSmoothed[i]) mSmoothed[i] = target;
+      else mSmoothed[i] *= mDecay;
+      float v = mSmoothed[i];
+      if (v < 0.001f) continue;
+
+      float d = depth[i];
+      float scale = 0.6f + 0.4f * d; // 近大远小
+      float barW = Math.max(1f, baseBarW * scale);
+      // 柱子中心 X：两侧向中轴略微收拢（透视汇聚感）
+      float cx = w * 0.5f + (i - (BUCKETS - 1) / 2f) * (baseBarW + gap) * d;
+      float left = cx - barW / 2f;
+      float right = cx + barW / 2f;
+
+      float barH = Math.max(h * 0.03f, v * h * 0.68f * scale);
+      float topY = horizonY - barH;
+      float bottomY = horizonY;
+
+      // 渐变：青蓝(顶) -> 品红(底)，按柱高取色
+      Shader shader = new LinearGradient(0, topY, 0, bottomY, mBarColor, mBarColor2, Shader.TileMode.CLAMP);
+      mPaint.setShader(shader);
+      // 透视四边形：柱体（近端宽、远端窄通过 cx 缩放体现；这里画成矩形模拟 3D 柱面）
+      canvas.drawRect(left, topY, right, bottomY, mPaint);
+
+      // 柱顶高光小面：亮色横条模拟受光
+      mPaint.setShader(null);
+      mPaint.setColor(0x66FFFFFF);
+      float topFaceH = Math.max(2f, barH * 0.06f);
+      canvas.drawRect(left, topY, right, topY + topFaceH, mPaint);
+
+      // 峰值迸发粒子（超过阈值才生成，控制数量）
+      if (v > 0.35f && mParticles.size() < MAX_PARTICLES) {
+        spawnParticles(cx, topY, v);
+      }
+    }
+    mPaint.setShader(null);
+    mPaint.setColor(0xFF000000);
+  }
+
+  // ---- 粒子系统 ----
+  private void spawnParticles(float cx, float topY, float strength) {
+    int count = 1 + (int) (strength * 3f);
+    for (int k = 0; k < count && mParticles.size() < MAX_PARTICLES; k++) {
+      Particle p = new Particle();
+      p.x = cx + (float) (Math.random() * 6 - 3);
+      p.y = topY;
+      p.vx = (float) (Math.random() * 60 - 30);
+      p.vy = (float) (Math.random() * 80 - 40); // 向上为主
+      p.size = 2f + (float) Math.random() * 3f;
+      p.alpha = 0.9f;
+      p.decay = 0.85f + (float) Math.random() * 0.1f;
+      // 粒子色：青蓝/品红 混合
+      float mix = (float) Math.random();
+      p.r = (1f - mix) * 0f + mix * 1f;
+      p.g = (1f - mix) * 0.83f + mix * 0.24f;
+      p.b = (1f - mix) * 1f + mix * 0.56f;
+      mParticles.add(p);
+    }
+  }
+
+  private void updateParticles() {
+    long now = System.currentTimeMillis();
+    float dt = Math.min(0.05f, (now - mLastFrameTime) / 1000f);
+    mLastFrameTime = now;
+    if (dt <= 0) return;
+    Iterator<Particle> it = mParticles.iterator();
+    while (it.hasNext()) {
+      Particle p = it.next();
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vy += 180f * dt; // 重力下坠
+      p.alpha *= (float) Math.pow(p.decay, dt * 60f);
+      if (p.alpha < 0.02f || p.y > getHeight() + 20f) it.remove();
+    }
+  }
+
+  private void drawParticles(Canvas canvas) {
+    if (mParticles.isEmpty()) return;
+    for (Particle p : mParticles) {
+      mParticlePaint.setColor(Color.argb((int) (p.alpha * 255), (int) (p.r * 255), (int) (p.g * 255), (int) (p.b * 255)));
+      canvas.drawCircle(p.x, p.y, p.size, mParticlePaint);
+    }
   }
 
   private void drawWave(Canvas canvas) {

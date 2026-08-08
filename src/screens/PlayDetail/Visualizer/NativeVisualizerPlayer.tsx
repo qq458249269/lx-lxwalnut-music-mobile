@@ -23,8 +23,10 @@ const NativeVisualizerPlayer = memo(forwardRef<NativeVisualizerPlayerHandle, {
   mode?: 0 | 1
   /** 律动背景透明度 0~1 */
   opacity?: number
+  /** 3D 透视 + 粒子效果 */
+  threeD?: boolean
   active?: boolean
-}>(({ style, audioSessionId, mode: modeProp, opacity, active = true }, ref) => {
+}>(({ style, audioSessionId, mode: modeProp, opacity, threeD = true, active = true }, ref) => {
   // 形态：优先外部 prop（设置控制），否则组件内部状态
   const [innerMode, setInnerMode] = useState<0 | 1>(0)
   const togglerRef = useRef<0 | 1>(0)
@@ -65,6 +67,7 @@ const NativeVisualizerPlayer = memo(forwardRef<NativeVisualizerPlayerHandle, {
           style={s.view}
           audioSessionId={sessionId}
           mode={mode}
+          threeD={threeD}
           active={active}
         />
       )}

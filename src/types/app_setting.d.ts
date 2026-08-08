@@ -270,6 +270,11 @@ declare global {
       'playDetail.visualizer.opacity': number
 
       /**
+       * 播放详情页-律动 3D 透视 + 粒子效果
+       */
+      'playDetail.visualizer.threeD': boolean
+
+      /**
        * 是否启用桌面歌词
        */
       'desktopLyric.enable': boolean

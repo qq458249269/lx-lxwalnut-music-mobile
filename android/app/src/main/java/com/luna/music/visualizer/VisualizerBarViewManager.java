@@ -40,6 +40,11 @@ public class VisualizerBarViewManager extends SimpleViewManager<VisualizerBarVie
     view.setActive(active);
   }
 
+  @ReactProp(name = "threeD")
+  public void setThreeD(VisualizerBarView view, boolean threeD) {
+    view.setThreeD(threeD);
+  }
+
   @Override
   public void onDropViewInstance(@NonNull VisualizerBarView view) {
     view.detachAudioSession();

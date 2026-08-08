@@ -37,6 +37,7 @@ export default memo(({ componentId }: { componentId: string }) => {
   const rhythmEnabled = useSettingValue('playDetail.visualizer.autoLandscape')
   const rhythmMode = useSettingValue('playDetail.visualizer.mode')
   const rhythmOpacity = useSettingValue('playDetail.visualizer.opacity')
+  const rhythmThreeD = useSettingValue('playDetail.visualizer.threeD')
   const showRhythm = rhythmEnabled && isPlay
 
   const onPageSelected = ({ nativeEvent }: PagerViewOnPageSelectedEvent) => {
@@ -89,6 +90,7 @@ export default memo(({ componentId }: { componentId: string }) => {
             style={styles.rhythmBg}
             mode={rhythmMode as 0 | 1}
             opacity={rhythmOpacity}
+            threeD={rhythmThreeD}
             active={isPlay}
           />
         )}
