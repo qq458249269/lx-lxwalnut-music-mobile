@@ -1,5 +1,5 @@
-import { memo, useEffect, useRef } from 'react'
-import { View, StatusBar, BackHandler, AppState } from 'react-native'
+import { memo, useCallback, useEffect, useRef } from 'react'
+import { View, StatusBar, BackHandler, AppState, TouchableOpacity } from 'react-native'
 import { Navigation } from 'react-native-navigation'
 import { setComponentId, removeComponentId } from '@/core/common'
 import { COMPONENT_IDS } from '@/config/constant'
@@ -8,6 +8,7 @@ import playerState from '@/store/player/state'
 import { lxmHeadlessServer } from '@/core/visualizer/LxmHeadlessServer'
 import { stop, handlePlay } from '@/core/player/player'
 import { getPosition, setCurrentTime } from '@/plugins/player/utils'
+import { Icon } from '@/components/common/Icon'
 import { screenkeepAwake, screenUnkeepAwake } from '@/utils/nativeModules/utils'
 import VisualizerPlayer, { type VisualizerPlayerHandle } from './VisualizerPlayer'
 
@@ -69,37 +70,62 @@ export default memo(({ componentId }: { componentId: string }) => {
     }
   }, [])
 
-  useEffect(() => {
-    const onBackPress = () => {
-      // 先在 WebView 仍挂载时主动停掉 Web 音频并异步拿回播放进度
-      playerRef.current?.stop((resumePos) => {
-        const enterSongId = global.lx.visualizerEnterSongId
-        global.lx.visualizerResumePos = 0
-        global.lx.visualizerLastPos = 0
-        void (async () => {
-          // 仅当退出时仍在播进入律动时的同一首歌才恢复进度
-          if (resumePos > 0 && resumePos !== resumePosRef.current && playerState.playMusicInfo?.musicInfo?.id === enterSongId) {
-            try { await setCurrentTime(resumePos) } catch {}
-          }
-          void handlePlay()
-        })()
-      })
-      // pop 稍后触发，确保组件卸载前 Web 音频已停
-      setTimeout(() => {
-        Navigation.pop(componentId)
-      }, 350)
-      return true
-    }
-    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress)
-    return () => sub.remove()
+  // 退出律动：停 Web 音频 → 拿回进度 → 同曲则续播 → pop 律动页
+  const exitVisualizer = useCallback(() => {
+    playerRef.current?.stop((resumePos) => {
+      const enterSongId = global.lx.visualizerEnterSongId
+      global.lx.visualizerResumePos = 0
+      global.lx.visualizerLastPos = 0
+      void (async () => {
+        // 仅当退出时仍在播进入律动时的同一首歌才恢复进度
+        if (resumePos > 0 && resumePos !== resumePosRef.current && playerState.playMusicInfo?.musicInfo?.id === enterSongId) {
+          try { await setCurrentTime(resumePos) } catch {}
+        }
+        void handlePlay()
+      })()
+    })
+    setTimeout(() => {
+      Navigation.pop(componentId)
+    }, 350)
   }, [componentId])
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      exitVisualizer()
+      return true
+    })
+    return () => sub.remove()
+  }, [exitVisualizer])
 
   return (
     <View style={s.root}>
       <StatusBar hidden />
       <VisualizerPlayer ref={playerRef} />
+      {/* 左上角退出按钮：与系统返回同一逻辑（停流/续进度/离开律动） */}
+      <TouchableOpacity
+        onPress={exitVisualizer}
+        style={s.exitBtn}
+        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        accessibilityLabel="exit visualizer"
+      >
+        <Icon name="chevron-left" size={22} color="#fff" />
+      </TouchableOpacity>
     </View>
   )
 })
 
-const s = createStyle({ root: { flex: 1, backgroundColor: '#000' } })
+const s = createStyle({
+  root: { flex: 1, backgroundColor: '#000' },
+  exitBtn: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    zIndex: 10,
+  },
+})

@@ -9,17 +9,15 @@ const [, , repo] = (repository.url.match(/github\.com\/([^/]+)\/([^/]+?)(?:\.git
 
 const abis = ['arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86', 'universal']
 
+// 优先用国内可达的 jsdelivr（raw.githubusercontent.com 在国内常被墙，放最后兜底）。
+// 仅依赖 jsdelivr 默认分支（main/master 自动跟随），无需硬编码分支名。
 const address = [
-  [
-    `https://raw.githubusercontent.com/${repo}/${name}/master/publish/version.json`,
-    'direct',
-  ],
-  // ['https://registry.npmjs.org/lx-music-mobile-version-info/latest', 'npm'],
   [`https://cdn.jsdelivr.net/gh/${repo}/${name}/publish/version.json`, 'direct'],
   [`https://fastly.jsdelivr.net/gh/${repo}/${name}/publish/version.json`, 'direct'],
   [`https://gcore.jsdelivr.net/gh/${repo}/${name}/publish/version.json`, 'direct'],
-  // ['https://registry.npmmirror.com/lx-music-mobile-version-info/latest', 'npm'],
+  // ['https://registry.npmjs.org/lx-music-mobile-version-info/latest', 'npm'],
   // ['http://cdn.stsky.cn/lx-music/mobile/version.json', 'direct'],
+  [`https://raw.githubusercontent.com/${repo}/${name}/main/publish/version.json`, 'direct'],
 ]
 
 const request = async (url, retryNum = 0) => {
