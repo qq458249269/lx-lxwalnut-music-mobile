@@ -56,3 +56,35 @@ try {
 } catch (e) {
   console.error("Error patching java file:", e.message);
 }
+
+// ---- 原生律动频谱:给 TrackPlayer 的 ExoPlayer 注入固定 audio session id ----
+// Android Visualizer 对同 uid 进程的现存 audio session attach 无需 RECORD_AUDIO 权限，
+// 用固定 id(1000) 让原生律动能稳定捕获频谱，规避 Visualizer(0) 全局捕获的权限/error -3 问题。
+try {
+  const musicManagerFile = path.join(__dirname, 'node_modules/react-native-track-player/android/src/main/java/com/guichaguri/trackplayer/service/MusicManager.java');
+  let mm = fs.readFileSync(musicManagerFile, 'utf8');
+
+  if (mm.includes('setAudioSessionId(1000)')) {
+    console.log('MusicManager: fixed audio session id already injected.');
+  } else {
+    // 在 ExoPlayer build 之后、setTrackSelectionParameters 之前注入固定 session id
+    const buildAnchor = 'ExoPlayer player = new ExoPlayer.Builder(service, renderersFactory)\n                .setLoadControl(control)\n                .setWakeMode(WAKE_MODE_NONE)\n                .build();';
+    if (mm.includes(buildAnchor)) {
+      mm = mm.replace(buildAnchor, buildAnchor + '\n\n        // (patch) fixed audio session id for visualizer spectrum capture\n        player.setAudioSessionId(1000);');
+      fs.writeFileSync(musicManagerFile, mm, 'utf8');
+      console.log('MusicManager: injected fixed audio session id (1000).');
+    } else {
+      // 兼容不同缩进/换行
+      const loose = /(\n\s*\.setWakeMode\(WAKE_MODE_NONE\)\s*\n\s*\.build\(\);\s*)/;
+      if (loose.test(mm)) {
+        mm = mm.replace(loose, '\n        // (patch) fixed audio session id for visualizer spectrum capture\n        player.setAudioSessionId(1000);$1');
+        fs.writeFileSync(musicManagerFile, mm, 'utf8');
+        console.log('MusicManager: injected fixed audio session id (loose match).');
+      } else {
+        console.log('MusicManager: could not locate ExoPlayer build() anchor.');
+      }
+    }
+  }
+} catch (e) {
+  console.error("Error patching MusicManager.java:", e.message);
+}

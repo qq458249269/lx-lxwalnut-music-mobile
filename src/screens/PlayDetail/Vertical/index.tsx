@@ -9,10 +9,14 @@ import Player from './Player'
 import PagerView, { type PagerViewOnPageSelectedEvent } from 'react-native-pager-view'
 import Lyric from './Lyric'
 import Pic from './Pic'
+import NativeVisualizerPlayer from '../Visualizer/NativeVisualizerPlayer'
 import { screenkeepAwake, screenUnkeepAwake } from '@/utils/nativeModules/utils'
 import commonState, { type InitState as CommonState } from '@/store/common/state'
 import { createStyle } from '@/utils/tools'
 // import { useTheme } from '@/store/theme/hook'
+
+// 原生律动固定 audio session id（patchMediaLayout.js 给 ExoPlayer 注入）
+const RHYTHM_SESSION_ID = 1000
 
 const LyricPage = ({ activeIndex }: { activeIndex: number }) => {
   const initedRef = useRef(false)
@@ -73,6 +77,8 @@ export default memo(({ componentId }: { componentId: string }) => {
     <>
       <Header />
       <View style={styles.container}>
+        {/* 竖屏原生律动背景：封面/歌词叠在频谱之上 */}
+        <NativeVisualizerPlayer style={styles.rhythmBg} audioSessionId={RHYTHM_SESSION_ID} />
         <PagerView
           onPageSelected={onPageSelected}
           // onPageScrollStateChanged={onPageScrollStateChanged}
@@ -106,6 +112,14 @@ const styles = createStyle({
   container: {
     flex: 1,
     flexDirection: 'column',
+  },
+  rhythmBg: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0.35,
   },
   pagerView: {
     flex: 1,
