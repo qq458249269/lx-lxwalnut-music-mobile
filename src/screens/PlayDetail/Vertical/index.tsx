@@ -10,6 +10,7 @@ import PagerView, { type PagerViewOnPageSelectedEvent } from 'react-native-pager
 import Lyric from './Lyric'
 import Pic from './Pic'
 import NativeVisualizerPlayer from '../Visualizer/NativeVisualizerPlayer'
+import { useIsPlay } from '@/store/player/hook'
 import { screenkeepAwake, screenUnkeepAwake } from '@/utils/nativeModules/utils'
 import commonState, { type InitState as CommonState } from '@/store/common/state'
 import { createStyle } from '@/utils/tools'
@@ -32,6 +33,8 @@ export default memo(({ componentId }: { componentId: string }) => {
   const [pageIndex, setPageIndex] = useState(0)
   const pagerViewRef = useRef<PagerView>(null);
   const showLyricRef = useRef(false)
+  // 律动只在播放时激活：暂停/停止时 native detach，避免频谱挂载干扰音频
+  const isPlay = useIsPlay()
 
   const onPageSelected = ({ nativeEvent }: PagerViewOnPageSelectedEvent) => {
     setPageIndex(nativeEvent.position)
@@ -77,8 +80,8 @@ export default memo(({ componentId }: { componentId: string }) => {
     <>
       <Header />
       <View style={styles.container}>
-        {/* 竖屏原生律动背景：封面/歌词叠在频谱之上 */}
-        <NativeVisualizerPlayer style={styles.rhythmBg} audioSessionId={RHYTHM_SESSION_ID} />
+        {/* 竖屏原生律动背景：封面/歌词叠在频谱之上；仅播放时激活，避免干扰音频 */}
+        <NativeVisualizerPlayer style={styles.rhythmBg} audioSessionId={RHYTHM_SESSION_ID} active={isPlay} />
         <PagerView
           onPageSelected={onPageSelected}
           // onPageScrollStateChanged={onPageScrollStateChanged}
