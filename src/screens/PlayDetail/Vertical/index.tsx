@@ -17,9 +17,6 @@ import commonState, { type InitState as CommonState } from '@/store/common/state
 import { createStyle } from '@/utils/tools'
 // import { useTheme } from '@/store/theme/hook'
 
-// 原生律动固定 audio session id（patchMediaLayout.js 给 ExoPlayer 注入）
-const RHYTHM_SESSION_ID = 1000
-
 const LyricPage = ({ activeIndex }: { activeIndex: number }) => {
   const initedRef = useRef(false)
   if (activeIndex === 1) initedRef.current = true
@@ -86,7 +83,7 @@ export default memo(({ componentId }: { componentId: string }) => {
       <View style={styles.container}>
         {/* 竖屏原生律动背景：封面/歌词叠在频谱之上；仅开关开启且播放时激活 */}
         {showRhythm && (
-          <NativeVisualizerPlayer style={styles.rhythmBg} audioSessionId={RHYTHM_SESSION_ID} active={isPlay} />
+          <NativeVisualizerPlayer style={styles.rhythmBg} active={isPlay} />
         )}
         <PagerView
           onPageSelected={onPageSelected}

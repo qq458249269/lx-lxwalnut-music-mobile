@@ -1,7 +1,6 @@
 import { memo, useRef, useMemo, useCallback } from 'react'
 import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native'
 import { Icon } from '@/components/common/Icon'
-import { SvgIcon } from '@/components/common/SvgIcon'
 import { pop, navigations } from '@/navigation'
 import { useTheme } from '@/store/theme/hook'
 import { usePlayMusicInfo } from '@/store/player/hook'
@@ -102,9 +101,6 @@ export default memo(() => {
   const showSetting = () => {
     popupRef.current?.show()
   }
-  const openVisualizer = () => {
-    navigations.pushVisualizerScreen(commonState.componentIds[commonState.componentIds.length - 1]?.id!)
-  }
   return (
     <View style={{ height: HEADER_HEIGHT }} nativeID={NAV_SHEAR_NATIVE_IDS.playDetail_header}>
       <View style={styles.container}>
@@ -112,9 +108,6 @@ export default memo(() => {
           <Icon name="chevron-left" size={18} />
         </TouchableOpacity>
         <Title />
-        <TouchableOpacity style={{ ...styles.button, width: HEADER_HEIGHT }} onPress={openVisualizer}>
-          <SvgIcon name="web-visualizer" size={18} color={theme['c-primary']} />
-        </TouchableOpacity>
         <DesktopLyricBtn />
         {isOneDrive ? null : <CommentBtn />}
         <Btn icon="slider" onPress={showSetting} />

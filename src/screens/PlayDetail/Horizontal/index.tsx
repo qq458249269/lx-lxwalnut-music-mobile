@@ -20,9 +20,9 @@ import { marginLeftRaw } from './constant'
 import { useStatusbarHeight } from '@/store/common/hook'
 // import MoreBtn from './MoreBtn2'
 
-export default memo(({ componentId, rhythmSessionId = 0, rhythmEnabled = false }: {
+export default memo(({ componentId, rhythmSessionId, rhythmEnabled = false }: {
   componentId: string
-  /** 原生律动固定 audio session id（>0 启用，0 关闭） */
+  /** 可选：原生律动 audio session id（不传则组件内部从 TrackPlayer 获取） */
   rhythmSessionId?: number
   /** 横屏是否显示原生律动背景 */
   rhythmEnabled?: boolean
@@ -30,7 +30,7 @@ export default memo(({ componentId, rhythmSessionId = 0, rhythmEnabled = false }
   const statusBarHeight = useStatusbarHeight()
   // 律动只在播放时激活：暂停/停止时 native detach，避免频谱挂载干扰音频
   const isPlay = useIsPlay()
-  const showRhythm = rhythmEnabled && rhythmSessionId > 0 && isPlay
+  const showRhythm = rhythmEnabled && isPlay
 
   useEffect(() => {
     setComponentId(COMPONENT_IDS.playDetail, componentId)

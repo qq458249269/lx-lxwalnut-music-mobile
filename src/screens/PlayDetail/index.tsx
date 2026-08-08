@@ -12,9 +12,6 @@ import { setComponentId } from '@/core/common'
 import { COMPONENT_IDS } from '@/config/constant'
 import { useIsLandscapeImmersion } from '@/store/common/hook'
 
-// 原生律动固定 audio session id（patchMediaLayout.js 给 ExoPlayer 注入）
-const RHYTHM_SESSION_ID = 1000
-
 export default ({ componentId }: { componentId: string }) => {
   const isHorizontalMode = useHorizontalMode()
   const isLandscapeImmersion = useIsLandscapeImmersion()
@@ -32,7 +29,7 @@ export default ({ componentId }: { componentId: string }) => {
     <PageContent>
       <StatusBar />
       {isHorizontalMode ? (
-        <Horizontal componentId={componentId} rhythmSessionId={RHYTHM_SESSION_ID} rhythmEnabled={autoLandscapeVisualizer} />
+        <Horizontal componentId={componentId} rhythmEnabled={autoLandscapeVisualizer} />
       ) : (
         <Vertical componentId={componentId} />
       )}

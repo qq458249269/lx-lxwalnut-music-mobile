@@ -62,15 +62,6 @@ global.lx = {
 
   homePagerIdle: true,
 
-  visualizerResumePos: 0,
-  visualizerLastPos: 0,
-  // 进入律动时的歌曲 id，用于恢复进度时确保是同歌曲（切歌后不误恢复）
-  visualizerEnterSongId: '',
-  // 律动内当前播的歌曲 id（随 dispatch 更新）；退出时以它为准同步回普通模式
-  visualizerWebSongId: '',
-  // 退出过律动：置位后同一详情页实例不再自动进入（横屏 auto），下次新实例（从首页进入）重置
-  visualizerExited: false,
-
   // syncKeyInfo: initValue as LX.Sync.KeyInfo,
 
   // windowInfo: {
