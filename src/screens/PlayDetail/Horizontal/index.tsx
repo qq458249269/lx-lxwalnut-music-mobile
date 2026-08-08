@@ -13,13 +13,24 @@ import Pic from './Pic'
 // import ControlBtn from './ControlBtn'
 import Lyric from './Lyric'
 import Player from './Player'
+import NativeVisualizerPlayer from '../Visualizer/NativeVisualizerPlayer'
+import { useIsPlay } from '@/store/player/hook'
 import { createStyle } from '@/utils/tools'
 import { marginLeftRaw } from './constant'
 import { useStatusbarHeight } from '@/store/common/hook'
 // import MoreBtn from './MoreBtn2'
 
-export default memo(({ componentId }: { componentId: string }) => {
+export default memo(({ componentId, rhythmSessionId = 0, rhythmEnabled = false }: {
+  componentId: string
+  /** 原生律动固定 audio session id（>0 启用，0 关闭） */
+  rhythmSessionId?: number
+  /** 横屏是否显示原生律动背景 */
+  rhythmEnabled?: boolean
+}) => {
   const statusBarHeight = useStatusbarHeight()
+  // 律动只在播放时激活：暂停/停止时 native detach，避免频谱挂载干扰音频
+  const isPlay = useIsPlay()
+  const showRhythm = rhythmEnabled && rhythmSessionId > 0 && isPlay
 
   useEffect(() => {
     setComponentId(COMPONENT_IDS.playDetail, componentId)
@@ -53,6 +64,14 @@ export default memo(({ componentId }: { componentId: string }) => {
     <PageContent>
       <StatusBar />
       <View style={{ ...styles.container, paddingTop: statusBarHeight }}>
+        {/* 横屏原生律动背景：封面/歌词叠在频谱之上；不全屏替换，保留状态栏 */}
+        {showRhythm && (
+          <NativeVisualizerPlayer
+            style={styles.rhythmBg}
+            audioSessionId={rhythmSessionId}
+            active={isPlay}
+          />
+        )}
         <View style={styles.left}>
           <Header />
           <View style={styles.leftContent}>
@@ -77,6 +96,15 @@ const styles = createStyle({
   container: {
     flex: 1,
     flexDirection: 'row',
+    position: 'relative',
+  },
+  rhythmBg: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0.3,
   },
   left: {
     flex: 1,
