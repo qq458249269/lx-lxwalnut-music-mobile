@@ -77,6 +77,8 @@ jobs:
           rm -f app/${{ secrets.MYAPP_UPLOAD_STORE_FILE }}
 
       - name: Create git tag
+        env:
+          RELEASE_TAG: ${{ steps.resolve.outputs.release_tag }}
         run: |
           if git ls-remote --exit-code --tags origin "refs/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
             echo "Tag ${RELEASE_TAG} already exists."

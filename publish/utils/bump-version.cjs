@@ -38,31 +38,24 @@ const versionCodeOf = (ver) => parseInt(String(ver).replace(/\./g, ''), 10)
 
 /**
  * 计算下一次发布版本号。
+ * 恒为四段 YY.MM.DD.N，日期 + 小号双递增：「同日或新日期」末位 N 递增，新日期从 .1 起。
  * @param {string} current 当前 package.json version
  * @param {Array<{tagName:string,isDraft?:boolean}>} tags 已存在的 Release tag（GhAPI 输出）
  * @param {string} today 日期基版本，默认当天
- * @returns {string} 下次版本：裸日期 或 同日 N 递增
+ * @returns {string} 下次版本：新日期首发 .1；同日 .N 递增
  */
 const computeNextVersion = (current, tags = [], today = todayVersion()) => {
   const base = datePart(current) === today ? today : today
-  let maxN = -1
-  let hasBase = false
+  let maxN = 0
   for (const t of tags) {
     const tv = String(t.tagName || t).replace(/^v/, '')
     if (t.isDraft) continue
-    if (tv === base) {
-      hasBase = true
-      if (maxN < 0) maxN = 0
-      continue
-    }
-    const m = new RegExp(`^${base.replace(/\./g, '\\.')}\\.(\\d+)$`).exec(tv)
-    if (m) {
-      const n = parseInt(m[1], 10)
-      hasBase = true
-      if (n > maxN) maxN = n
-    }
+    const m = new RegExp(`^${base.replace(/\./g, '\\.')}(?:\\.(\\d+))?$`).exec(tv)
+    if (!m) continue
+    const n = m[1] != null ? parseInt(m[1], 10) : 0
+    if (n > maxN) maxN = n
   }
-  return hasBase ? `${base}.${maxN + 1}` : base
+  return `${base}.${maxN + 1}`
 }
 
 const selfTest = () => {
@@ -78,11 +71,11 @@ const selfTest = () => {
   assert(compareVer('26.08.08.1', '26.08.8.1') === 0, 'compare pad eq (08==8)')
   assert(versionCodeOf('26.08.08.1') === 2608081, 'versionCode 4seg')
   assert(versionCodeOf('26.08.08') === 260808, 'versionCode 3seg')
-  // 未发布过的日期：裸日期
-  assert(computeNextVersion('26.08.07', [], t) === '26.08.08', 'day rollover')
-  // 同一天首个：裸日期
-  assert(computeNextVersion('26.08.08', [], t) === '26.08.08', 'first of day bare')
-  // 同日已发裸版：-> .1
+  // 未发布过的新日期：从 .1 起
+  assert(computeNextVersion('26.08.07', [], t) === '26.08.08.1', 'day rollover -> .1')
+  // 同一天首个（无小号 tag 时）：.1
+  assert(computeNextVersion('26.08.08', [], t) === '26.08.08.1', 'first of day -> .1')
+  // 同日已有裸版：-> .1
   assert(computeNextVersion('26.08.08', [{ tagName: 'v26.08.08' }], t) === '26.08.08.1', 'bare base -> .1')
   // 同日已有 .1：-> .2
   assert(computeNextVersion('26.08.08.1', [{ tagName: 'v26.08.08.1', isDraft: false }], t) === '26.08.08.2', 'increment')
@@ -98,11 +91,12 @@ const selfTest = () => {
 
 /**
  * 本地发布用：无 GitHub API 场景（npm run publish）。
- * 同日 → 从当前版本末位 N+1；跨日 → 今天裸日期；同日首个（3 段）→ .1。
+ * 恒四段：同日或新日期 → 末位 N+1（新日期从 .1 起）。
  */
 const computeNextVersionLocal = (current, today = todayVersion()) => {
   const base = datePart(current)
-  return base === today ? `${today}.${(datePartWidthIncrement(current) || 0) + 1}` : today
+  const n = base === today ? (datePartWidthIncrement(current) || 0) : 0
+  return `${today}.${n + 1}`
 }
 
 const datePartWidthIncrement = (current) => {
