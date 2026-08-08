@@ -9,6 +9,7 @@ import android.media.AudioManager;
 import android.media.audiofx.Visualizer;
 import android.os.HandlerThread;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.View;
 
 import java.util.Arrays;
@@ -123,6 +124,7 @@ public class VisualizerBarView extends View {
 
   /** active 开关：为 false 立即释放频谱采样（性能：未进律动不采） */
   public void setActive(boolean active) {
+    Log.d("RhythmDebug", "setActive active=" + active + " (was " + mActive + ")");
     mActive = active;
     if (active) {
       attachAudioSession(mAudioSessionId);
@@ -160,6 +162,7 @@ public class VisualizerBarView extends View {
       mVisualizer.setEnabled(true);
       mAttached = true;
       mAudioSessionId = sessionId;
+      Log.d("RhythmDebug", "attach OK session=" + sessionId + " captureRate=" + mCaptureRate);
       return true;
     } catch (Exception e) {
       if (mVisualizer != null) {
@@ -167,6 +170,7 @@ public class VisualizerBarView extends View {
         mVisualizer = null;
       }
       mAttached = false;
+      Log.e("RhythmDebug", "attach FAIL session=" + sessionId + " err=" + e.getClass().getSimpleName() + ": " + e.getMessage());
       return false;
     }
   }
@@ -195,6 +199,7 @@ public class VisualizerBarView extends View {
     detachAudioSession(); // 换 session 前先释放旧的
     mAudioSessionId = audioSessionId;
     mGotData = false;
+    Log.d("RhythmDebug", "attachAudioSession target=" + audioSessionId + " active=" + mActive);
     // 后台线程采，避免卡 UI
     mCaptureThread = new HandlerThread("visualizer-capture");
     mCaptureThread.start();
