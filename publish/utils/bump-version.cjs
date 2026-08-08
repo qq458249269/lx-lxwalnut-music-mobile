@@ -33,8 +33,19 @@ const compareVer = (a, b) => {
   return 0
 }
 
-/** versionCode 由版本号去点推得：'26.08.08.1' -> 2608081 */
-const versionCodeOf = (ver) => parseInt(String(ver).replace(/\./g, ''), 10)
+/**
+ * versionCode 由四位版本号线性编码，保证不随日期跳变发生反转（拼接会造成 >10 号日降级）。
+ * YY.MM.DD.N -> (((YY*100 + MM)*100 + DD)*100 + N)
+ * 26.08.08  -> 260808 0x; 26.08.08.1 -> 26080801; 26.08.09 -> 26080900;
+ * 26.08.09.1 -> 26080901 > 26.08.08.1(26080801) 单调。上限约 99123199，*abi 后缀(×10+idx)仍 int 安全。
+ * 此值即 build.gradle 的 defaultConfig.versionCode，abi 拆分在 override 里 ×10 + idx。
+ */
+const versionCodeOf = (ver) => {
+  const m = /^(\d{1,2})\.(\d{1,2})\.(\d{1,2})(?:\.(\d+))?$/.exec(String(ver || ''))
+  if (!m) return 0
+  const [, y, mo, d, n] = m
+  return ((parseInt(y, 10) * 100 + parseInt(mo, 10)) * 100 + parseInt(d, 10)) * 100 + parseInt(n || 0, 10)
+}
 
 /**
  * 计算下一次发布版本号。
@@ -69,8 +80,10 @@ const selfTest = () => {
   assert(compareVer('26.08.08', '26.08.08.1') === -1, 'compare lt')
   assert(compareVer('26.08.08.3', '26.08.08.1') === 1, 'compare gt')
   assert(compareVer('26.08.08.1', '26.08.8.1') === 0, 'compare pad eq (08==8)')
-  assert(versionCodeOf('26.08.08.1') === 2608081, 'versionCode 4seg')
-  assert(versionCodeOf('26.08.08') === 260808, 'versionCode 3seg')
+  assert(versionCodeOf('26.08.08.1') === 26080801, 'versionCode 4seg')
+  assert(versionCodeOf('26.08.08') === 26080800, 'versionCode bare day')
+  assert(versionCodeOf('26.08.09') === 26080900, 'versionCode day roll')
+  assert(versionCodeOf('27.01.01') === 27010100, 'versionCode year roll')
   // 未发布过的新日期：从 .1 起
   assert(computeNextVersion('26.08.07', [], t) === '26.08.08.1', 'day rollover -> .1')
   // 同一天首个（无小号 tag 时）：.1
