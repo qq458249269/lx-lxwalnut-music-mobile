@@ -69,7 +69,7 @@ try {
   const exoFile = path.join(TP_ROOT, 'android/src/main/java/com/guichaguri/trackplayer/service/player/ExoPlayback.java');
   let exo = fs.readFileSync(exoFile, 'utf8');
   const exoGetter = `    public int getAudioSessionId() {
-        return player.getAudioSessionId();
+        return ((androidx.media3.exoplayer.ExoPlayer) player).getAudioSessionId();
     }`;
   if (exo.includes('public int getAudioSessionId()')) {
     console.log('ExoPlayback: getAudioSessionId already added.');
