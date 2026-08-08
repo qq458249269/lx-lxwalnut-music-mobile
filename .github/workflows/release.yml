@@ -8,13 +8,13 @@ on:
       - 'publish/version.json'
 
 jobs:
-  Version:
-    name: Version
+  Android:
+    name: Android
     runs-on: ubuntu-latest
     permissions:
       contents: write
     outputs:
-      next_version: ${{ steps.resolve.outputs.next_version }}
+      package_version: ${{ steps.resolve.outputs.next_version }}
       release_tag: ${{ steps.resolve.outputs.release_tag }}
       release_name: ${{ steps.resolve.outputs.release_name }}
       release_prerelease: ${{ steps.resolve.outputs.release_prerelease }}
@@ -22,7 +22,20 @@ jobs:
       - name: Check out git repository
         uses: actions/checkout@v5
 
-      - name: Compute next version
+      - name: Setup Env
+        uses: ./.github/actions/setup
+
+      - name: Cache Metro transform cache
+        uses: actions/cache@v5
+        with:
+          path: .metro-cache
+          key: metro-${{ runner.os }}-${{ hashFiles('package-lock.json', 'metro.config.js', 'babel.config.js') }}
+          restore-keys: |
+            metro-${{ runner.os }}-
+
+      # 先算本次发布版本（四段 YY.MM.DD[.N]，同日递增末位），再注入 package.json（version+versionCode）。
+      # 与本地 npm run publish 共用 bump-version 模块，单一来源。
+      - name: Compute & inject version
         id: resolve
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -43,46 +56,18 @@ jobs:
             RELEASE_PRERELEASE="false"
           fi
 
+          node -e "const fs=require('fs');const f='./package.json';const j=JSON.parse(fs.readFileSync(f,'utf8'));const {versionCodeOf}=require('./publish/utils/bump-version.cjs');j.version='${NEXT_VERSION}';j.versionCode=versionCodeOf('${NEXT_VERSION}');fs.writeFileSync(f,JSON.stringify(j,null,2)+'\n')"
+
           echo "NEXT_VERSION=${NEXT_VERSION}" >> "$GITHUB_ENV"
           echo "next_version=${NEXT_VERSION}" >> "$GITHUB_OUTPUT"
           echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
           echo "release_name=${RELEASE_NAME}" >> "$GITHUB_OUTPUT"
           echo "release_prerelease=${RELEASE_PRERELEASE}" >> "$GITHUB_OUTPUT"
 
-      - name: Inject version & versionCode
-        shell: bash
-        run: |
-          node -e "const fs=require('fs');const f='./package.json';const j=JSON.parse(fs.readFileSync(f,'utf8'));const {versionCodeOf}=require('./publish/utils/bump-version.cjs');j.version='${NEXT_VERSION}';j.versionCode=versionCodeOf('${NEXT_VERSION}');fs.writeFileSync(f,JSON.stringify(j,null,2)+'\n')"
-
-  Android:
-    name: Android
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    outputs:
-      package_version: ${{ needs.Version.outputs.next_version }}
-      release_tag: ${{ needs.Version.outputs.release_tag }}
-      release_name: ${{ needs.Version.outputs.release_name }}
-      release_prerelease: ${{ needs.Version.outputs.release_prerelease }}
-    steps:
-      - name: Check out git repository
-        uses: actions/checkout@v5
-
-      - name: Setup Env
-        uses: ./.github/actions/setup
-
-      - name: Cache Metro transform cache
-        uses: actions/cache@v5
-        with:
-          path: .metro-cache
-          key: metro-${{ runner.os }}-${{ hashFiles('package-lock.json', 'metro.config.js', 'babel.config.js') }}
-          restore-keys: |
-            metro-${{ runner.os }}-
-
       - name: Build Packages
         env:
           DISABLE_SVG: 1
-          PACKAGE_VERSION: ${{ needs.Version.outputs.next_version }}
+          PACKAGE_VERSION: ${{ steps.resolve.outputs.next_version }}
         shell: bash
         run: |
           cd android
@@ -92,17 +77,14 @@ jobs:
           rm -f app/${{ secrets.MYAPP_UPLOAD_STORE_FILE }}
 
       - name: Create git tag
-        env:
-          RELEASE_TAG_FOR_TAG: ${{ needs.Version.outputs.release_tag }}
-        shell: bash
         run: |
-          if git ls-remote --exit-code --tags origin "refs/tags/${RELEASE_TAG_FOR_TAG}" >/dev/null 2>&1; then
-            echo "Tag ${RELEASE_TAG_FOR_TAG} already exists."
+          if git ls-remote --exit-code --tags origin "refs/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
+            echo "Tag ${RELEASE_TAG} already exists."
           else
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git tag "${RELEASE_TAG_FOR_TAG}" "${GITHUB_SHA}"
-            git push origin "refs/tags/${RELEASE_TAG_FOR_TAG}"
+            git tag "${RELEASE_TAG}" "${GITHUB_SHA}"
+            git push origin "refs/tags/${RELEASE_TAG}"
           fi
 
       - name: Generate file MD5
@@ -113,13 +95,12 @@ jobs:
       - name: Upload Artifact
         uses: ./.github/actions/upload-artifact
         env:
-          PACKAGE_VERSION: ${{ needs.Version.outputs.next_version }}
+          PACKAGE_VERSION: ${{ steps.resolve.outputs.next_version }}
 
   Sync:
     name: Sync
     runs-on: ubuntu-latest
     needs:
-      - Version
       - Android
     permissions:
       contents: write
@@ -129,7 +110,7 @@ jobs:
 
       - name: Sync version.json to release tag
         env:
-          NEW_VERSION: ${{ needs.Version.outputs.next_version }}
+          NEW_VERSION: ${{ needs.Android.outputs.next_version }}
         shell: bash
         run: |
           node -e "const {compareVer}=require('./publish/utils/bump-version.cjs');const fs=require('fs');const f='./publish/version.json';const v=JSON.parse(fs.readFileSync(f,'utf8'));if(compareVer('${NEW_VERSION}',v.version||'')>0){v.version='${NEW_VERSION}';fs.writeFileSync(f,JSON.stringify(v,null,2)+'\n')}else{console.log('version.json already >= ${NEW_VERSION}, skip')}"
@@ -175,12 +156,12 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v3
         with:
-          name: ${{ needs.Version.outputs.release_name }}
+          name: ${{ needs.Android.outputs.release_name }}
           body_path: RELEASE_NOTES.md
-          prerelease: ${{ needs.Version.outputs.release_prerelease }}
+          prerelease: ${{ needs.Android.outputs.release_prerelease }}
           draft: false
-          tag_name: ${{ needs.Version.outputs.release_tag }}
+          tag_name: ${{ needs.Android.outputs.release_tag }}
           files: |
-            artifacts/lx-lxwalnut-music-mobile-v${{ needs.Version.outputs.package_version }}-arm64-v8a.apk
+            artifacts/lx-lxwalnut-music-mobile-v${{ needs.Android.outputs.package_version }}-arm64-v8a.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
