@@ -109,15 +109,13 @@ export default () => {
     global.lx.playerError = true
     if (!isEmpty()) void setStop()
 
-    // 设置错误状态文本，但不自动播放下一首
+    // 设置错误状态文本，并自动播放下一首（URL 过期/失败重试耗尽后）
     setStatusText(global.i18n.t('player__error'))
-    // if (isActive()) {
-    //   setStatusText(global.i18n.t('player__error'))
-    //   setTimeout(addDelayNextTimeout)
-    // } else {
-    //   console.warn('error skip to next')
-    //   void playNext(true)
-    // }
+    if (isActive()) {
+      setTimeout(addDelayNextTimeout) // 5 秒后播下一首
+    } else {
+      void playNext(true) // 后台直接播下一首
+    }
   }
 
   const handleSetPlayInfo = () => {
