@@ -319,7 +319,7 @@ try {
 
 import android.content.Context;
 
-import androidx.media3.common.audio.AudioFormat;
+import androidx.media3.common.C;
 import androidx.media3.common.audio.AudioProcessor;
 import androidx.media3.common.audio.BaseAudioProcessor;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
@@ -362,12 +362,12 @@ public class VisualizerAudioProcessor extends BaseAudioProcessor {
   }
 
   @Override
-  public AudioFormat onConfigure(AudioFormat inputAudioFormat) {
-    if (inputAudioFormat.encoding == AudioFormat.ENCODING_PCM_16BIT) {
+  public AudioProcessor.AudioFormat onConfigure(AudioProcessor.AudioFormat inputAudioFormat) {
+    if (inputAudioFormat.encoding == C.ENCODING_PCM_16BIT) {
       sSampleRate = inputAudioFormat.sampleRate;
       return inputAudioFormat;
     }
-    return AudioFormat.NOT_SET;
+    return AudioProcessor.AudioFormat.NOT_SET;
   }
 
   @Override
@@ -459,7 +459,6 @@ public class VisualizerAudioProcessor extends BaseAudioProcessor {
       protected AudioSink buildAudioSink(Context ctx, boolean enableFloatOutput, boolean enableAudioOutputPlaybackParams) {
         return new DefaultAudioSink.Builder(ctx)
             .setEnableFloatOutput(enableFloatOutput)
-            .setEnableAudioOutputPlaybackParameters(enableAudioOutputPlaybackParams)
             .setAudioProcessors(new AudioProcessor[]{ new VisualizerAudioProcessor() })
             .build();
       }
