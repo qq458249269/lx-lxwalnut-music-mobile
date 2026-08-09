@@ -19,6 +19,7 @@ import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.uimanager.events.RCTEventEmitter;
+import com.guichaguri.trackplayer.service.VisualizerAudioProcessor;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -171,6 +172,8 @@ public class VisualizerBarView extends View {
   public void setActive(boolean active) {
     sendRhythmLog("setActive active=" + active + " (was " + mActive + ")");
     mActive = active;
+    // 联动 AudioProcessor 数据源(启用/停用 FFT)
+    try { VisualizerAudioProcessor.setEnabled(active); } catch (Exception ignore) {}
     if (active) {
       attachAudioSession(mAudioSessionId);
     } else {
@@ -359,6 +362,12 @@ public class VisualizerBarView extends View {
   @Override
   protected void onDraw(Canvas canvas) {
     super.onDraw(canvas);
+    // 优先用 AudioProcessor 数据源（HyperOS 2 系统 Visualizer 失败时自动接管）
+    if (VisualizerAudioProcessor.hasData()) {
+      System.arraycopy(VisualizerAudioProcessor.levels(), 0, mLevels, 0, BUCKETS);
+      System.arraycopy(VisualizerAudioProcessor.wave(), 0, mWave, 0, BUCKETS);
+      mGotData = true;
+    }
     // 未 attach 或未拿到数据：画空闲柱子（低矮静态），不显示错误/权限提示
     if (!mAttached || !mGotData) {
       drawIdleBars(canvas);

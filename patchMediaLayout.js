@@ -304,3 +304,188 @@ function getState() {`;
     console.log('lib/trackPlayer.d.ts: added setAudioOffload declarations.');
   }
 } catch (e) { console.error('Error patching lib setAudioOffload:', e.message); }
+
+// ---- 律动数据源:ExoPlayer AudioProcessor(替代系统 Visualizer) ----
+// 小米 HyperOS 2 上系统 Visualizer 引擎初始化失败(error -3)无法取频谱。
+// 改用 ExoPlayer AudioProcessor:在音频解码后 tap PCM 数据,自算 FFT 得频谱,
+// 不依赖系统 Visualizer、不需要任何权限。audioOffload 必须为 false 才生效。
+try {
+  // 1) 生成 VisualizerAudioProcessor.java(同包,BaseAudioProcessor + 2048 FFT + volatile 快照)
+  const vizFile = path.join(TP_ROOT, 'android/src/main/java/com/guichaguri/trackplayer/service/VisualizerAudioProcessor.java');
+  if (fs.existsSync(vizFile)) {
+    console.log('VisualizerAudioProcessor.java already exists.');
+  } else {
+    const code = `package com.guichaguri.trackplayer.service;
+
+import android.content.Context;
+
+import androidx.media3.common.audio.AudioFormat;
+import androidx.media3.common.audio.AudioProcessor;
+import androidx.media3.common.audio.BaseAudioProcessor;
+import androidx.media3.exoplayer.DefaultRenderersFactory;
+import androidx.media3.exoplayer.audio.DefaultAudioSink;
+import androidx.media3.exoplayer.audio.AudioSink;
+
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+
+/**
+ * 音频频谱数据源(替代系统 Visualizer)。
+ * 挂在 ExoPlayer AudioSink 链上,在解码后 tap PCM 16bit 数据,
+ * 用迭代 radix-2 FFT 算频谱,volatile 静态快照供 UI 线程(VirtualizerBarView)读取。
+ * 不依赖 android.media.audiofx.Visualizer(HyperOS 2 上初始化失败 error -3),无需权限。
+ * 仅对 ENCODING_PCM_16BIT 生效;audioOffload 开启时被旁路(须保持关闭)。
+ */
+public class VisualizerAudioProcessor extends BaseAudioProcessor {
+  public static final int BUCKETS = 64;
+  public static final int FFT_SIZE = 2048;
+
+  private static volatile float[] sLevels = new float[BUCKETS];
+  private static volatile float[] sWave = new float[BUCKETS];
+  private static volatile boolean sHasData = false;
+  private static volatile boolean sEnabled = false;
+  private static volatile int sSampleRate = 44100;
+
+  // 输入累积缓冲
+  private final short[] mSamples = new short[FFT_SIZE];
+  private int mSampleCount = 0;
+
+  /** 供律动 View 读取当前频谱快照 */
+  public static float[] levels() { return sLevels; }
+  public static float[] wave() { return sWave; }
+  public static boolean hasData() { return sHasData; }
+
+  /** 律动启用开关:关闭时透传但跳过 FFT */
+  public static void setEnabled(boolean enabled) {
+    sEnabled = enabled;
+    if (!enabled) { sHasData = false; }
+  }
+
+  @Override
+  public AudioFormat onConfigure(AudioFormat inputAudioFormat) {
+    if (inputAudioFormat.encoding == AudioFormat.ENCODING_PCM_16BIT) {
+      sSampleRate = inputAudioFormat.sampleRate;
+      return inputAudioFormat;
+    }
+    return AudioFormat.NOT_SET;
+  }
+
+  @Override
+  public void queueInput(ByteBuffer inputData) {
+    if (!sEnabled) return; // 关时不累积,直接透传(由父类)
+    ByteBuffer data = inputData.order(ByteOrder.LITTLE_ENDIAN);
+    while (data.remaining() >= 2) {
+      mSamples[mSampleCount++] = data.getShort();
+      if (mSampleCount >= FFT_SIZE) {
+        processWindow();
+        mSampleCount = 0;
+      }
+    }
+  }
+
+  private void processWindow() {
+    // 1) 波形:2048 -> 64 点抽稀,short/32768 归一
+    float[] wave = new float[BUCKETS];
+    for (int i = 0; i < BUCKETS; i++) {
+      int idx = Math.min(FFT_SIZE - 1, i * FFT_SIZE / BUCKETS);
+      wave[i] = mSamples[idx] / 32768f;
+    }
+    // 2) FFT:迭代 radix-2
+    float[] re = new float[FFT_SIZE];
+    float[] im = new float[FFT_SIZE];
+    System.arraycopy(mSamples, 0, re, 0, FFT_SIZE);
+    fft(re, im);
+    // 3) 64 桶能量归一:1024 bin 分 64 桶,每桶 sqrt(能量和),同系统 Visualizer 归一
+    float[] levels = new float[BUCKETS];
+    int bins = FFT_SIZE / 2 - 1;
+    float maxMag = 0;
+    for (int i = 0; i < BUCKETS; i++) {
+      int start = 1 + i * bins / BUCKETS;
+      int end = Math.min(bins, 1 + (i + 1) * bins / BUCKETS);
+      double sumSq = 0;
+      for (int k = start; k < end; k++) {
+        sumSq += re[k] * re[k] + im[k] * im[k];
+      }
+      float mag = (float) Math.sqrt(sumSq);
+      levels[i] = Math.min(1f, mag / 100f);
+      if (mag > maxMag) maxMag = mag;
+    }
+    if (maxMag > 2f) {
+      sLevels = levels;
+      sWave = wave;
+      sHasData = true;
+    }
+  }
+
+  private static void fft(float[] re, float[] im) {
+    int n = re.length;
+    // bit-reversal
+    for (int i = 1, j = 0; i < n; i++) {
+      int bit = n >> 1;
+      for (; (j & bit) != 0; bit >>= 1) j ^= bit;
+      j ^= bit;
+      if (i < j) {
+        float tr = re[i]; re[i] = re[j]; re[j] = tr;
+        float ti = im[i]; im[i] = im[j]; im[j] = ti;
+      }
+    }
+    for (int len = 2; len <= n; len <<= 1) {
+      float ang = (float) (-2 * Math.PI / len);
+      float wRe = (float) Math.cos(ang);
+      float wIm = (float) Math.sin(ang);
+      for (int i = 0; i < n; i += len) {
+        float curRe = 1f, curIm = 0f;
+        for (int k = 0; k < len / 2; k++) {
+          int a = i + k;
+          int b = i + k + len / 2;
+          float tRe = curRe * re[b] - curIm * im[b];
+          float tIm = curRe * im[b] + curIm * re[b];
+          re[b] = re[a] - tRe;
+          im[b] = im[a] - tIm;
+          re[a] += tRe;
+          im[a] += tIm;
+          float nRe = curRe * wRe - curIm * wIm;
+          curIm = curRe * wIm + curIm * wRe;
+          curRe = nRe;
+        }
+      }
+    }
+  }
+
+  /** 供 MusicManager 使用:创建挂载本 AudioProcessor 的 renderers factory */
+  public static DefaultRenderersFactory createFactory(Context context) {
+    return new DefaultRenderersFactory(context) {
+      @Override
+      protected AudioSink buildAudioSink(Context ctx, boolean enableFloatOutput, boolean enableAudioOutputPlaybackParams) {
+        return new DefaultAudioSink.Builder(ctx)
+            .setEnableFloatOutput(enableFloatOutput)
+            .setEnableAudioOutputPlaybackParameters(enableAudioOutputPlaybackParams)
+            .setAudioProcessors(new AudioProcessor[]{ new VisualizerAudioProcessor() })
+            .build();
+      }
+    };
+  }
+}
+`;
+    fs.writeFileSync(vizFile, code, 'utf8');
+    console.log('VisualizerAudioProcessor.java created.');
+  }
+} catch (e) { console.error('Error creating VisualizerAudioProcessor:', e.message); }
+
+try {
+  // 2) MusicManager.java:renderersFactory 改用 AudioProcessor factory
+  const mmFile = path.join(TP_ROOT, 'android/src/main/java/com/guichaguri/trackplayer/service/MusicManager.java');
+  let mm = fs.readFileSync(mmFile, 'utf8');
+  if (mm.includes('VisualizerAudioProcessor.createFactory')) {
+    console.log('MusicManager: AudioProcessor factory already applied.');
+  } else {
+    const anchor = 'DefaultRenderersFactory renderersFactory = new DefaultRenderersFactory(service);';
+    if (mm.includes(anchor)) {
+      mm = mm.replace(anchor, 'DefaultRenderersFactory renderersFactory = VisualizerAudioProcessor.createFactory(service);');
+      fs.writeFileSync(mmFile, mm, 'utf8');
+      console.log('MusicManager: renderersFactory -> VisualizerAudioProcessor.createFactory.');
+    } else {
+      console.log('MusicManager: could not locate renderersFactory line.');
+    }
+  }
+} catch (e) { console.error('Error patching MusicManager factory:', e.message); }
