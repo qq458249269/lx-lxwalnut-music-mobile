@@ -30,7 +30,6 @@ export default memo(() => {
       <IsShowLyricRoma />
       <IsS2T />
       <MaxCache />
-      <AutoVisualizer />
       <PlayHighQuality />
     </Section>
   )
