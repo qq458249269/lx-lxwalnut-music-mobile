@@ -9,6 +9,8 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- 律动 Visualizer 需要：某些 ROM(HyperOS 2) 缺它报 Cannot initialize Visualizer engine error:-3 -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
     <application
       android:name=".MainApplication"
