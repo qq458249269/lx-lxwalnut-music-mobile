@@ -1,7 +1,7 @@
 import ChoosePath, { type ChoosePathType } from '@/components/common/ChoosePath'
 import { USER_API_SOURCE_FILE_EXT_RXP } from '@/config/constant'
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
-import { handleImportLocalFile } from './action'
+import { handleImportLocalDir } from './action'
 
 export interface SelectInfo {
   // listInfo: LX.List.MyListInfo
@@ -36,20 +36,18 @@ export default forwardRef<ScriptImportExportType, {}>((props, ref) => {
       selectInfoRef.current = {
         action: 'import',
       }
+      // 批量导入：选择文件夹，导入其中所有 .js 音源
+      const opts = {
+        title: global.i18n.t('user_api_import_desc'),
+        dirOnly: true,
+        filter: USER_API_SOURCE_FILE_EXT_RXP,
+      }
       if (visible) {
-        choosePathRef.current?.show({
-          title: global.i18n.t('user_api_import_desc'),
-          dirOnly: false,
-          filter: USER_API_SOURCE_FILE_EXT_RXP,
-        })
+        choosePathRef.current?.show(opts)
       } else {
         setVisible(true)
         requestAnimationFrame(() => {
-          choosePathRef.current?.show({
-            title: global.i18n.t('user_api_import_desc'),
-            dirOnly: false,
-            filter: USER_API_SOURCE_FILE_EXT_RXP,
-          })
+          choosePathRef.current?.show(opts)
         })
       }
     },
@@ -81,7 +79,7 @@ export default forwardRef<ScriptImportExportType, {}>((props, ref) => {
   const onConfirmPath = (path: string) => {
     switch (selectInfoRef.current.action) {
       case 'import':
-        handleImportLocalFile(path)
+        void handleImportLocalDir(path)
         break
       // case 'export':
       //   handleExport(selectInfoRef.current.listInfo, path)
