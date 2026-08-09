@@ -372,23 +372,30 @@ public class VisualizerAudioProcessor extends BaseAudioProcessor {
 
   @Override
   public void queueInput(ByteBuffer inputData) {
-    // 先 tap 数据算频谱(用 duplicate,不消耗原 buffer)
+    // 先 tap 数据算频谱(用 duplicate,不消耗原 buffer);FFT 出错不影响播放
     if (sEnabled) {
-      ByteBuffer data = inputData.duplicate();
-      data.order(ByteOrder.LITTLE_ENDIAN);
-      while (data.remaining() >= 2) {
-        mSamples[mSampleCount++] = data.getShort();
-        if (mSampleCount >= FFT_SIZE) {
-          processWindow();
-          mSampleCount = 0;
+      try {
+        ByteBuffer data = inputData.duplicate();
+        data.order(ByteOrder.LITTLE_ENDIAN);
+        while (data.remaining() >= 2) {
+          mSamples[mSampleCount++] = data.getShort();
+          if (mSampleCount >= FFT_SIZE) {
+            processWindow();
+            mSampleCount = 0;
+          }
         }
-      }
+      } catch (Exception ignore) {}
     }
     // 必须透传音频到输出(否则播放器缓冲):复制 input 到 output buffer
-    int remaining = inputData.remaining();
-    ByteBuffer out = replaceOutputBuffer(remaining);
-    out.put(inputData);
-    out.flip();
+    try {
+      int remaining = inputData.remaining();
+      ByteBuffer out = replaceOutputBuffer(remaining);
+      out.put(inputData);
+      out.flip();
+    } catch (Exception e) {
+      // 透传失败:清空输出避免卡死
+      try { replaceOutputBuffer(0).flip(); } catch (Exception ignore) {}
+    }
   }
 
   private void processWindow() {
