@@ -188,3 +188,119 @@ try {
     console.log('lib/trackPlayer.d.ts: added getAudioSessionId declarations.');
   }
 } catch (e) { console.error('Error patching lib/trackPlayer.d.ts:', e.message); }
+
+// ---- 律动 error -3:运行时切换 audioOffload ----
+// audioOffload 开启时 ExoPlayer 走 DSP 硬解，Visualizer 无法 attach(error -3)。
+// 暴露 setAudioOffload(boolean)：运行时改 TrackSelectionParameters 关闭 offload + seek 重解。
+// 律动 active 时 JS 调 TrackPlayer.setAudioOffload(false)，失活恢复 true。
+try {
+  // 1) ExoPlayback.java 加 setAudioOffload
+  const exoFile = path.join(TP_ROOT, 'android/src/main/java/com/guichaguri/trackplayer/service/player/ExoPlayback.java');
+  let exo = fs.readFileSync(exoFile, 'utf8');
+  if (exo.includes('public void setAudioOffload(boolean enable)')) {
+    console.log('ExoPlayback: setAudioOffload already added.');
+  } else {
+    const anchor = `    public int getAudioSessionId() {
+        return ((androidx.media3.exoplayer.ExoPlayer) player).getAudioSessionId();
+    }`;
+    const add = `
+    /** 运行时切换 audioOffload（关闭后 Visualizer 才能捕获频谱；seek 触发重新解码） */
+    public void setAudioOffload(boolean enable) {
+        try {
+            androidx.media3.exoplayer.ExoPlayer exo = (androidx.media3.exoplayer.ExoPlayer) player;
+            androidx.media3.common.TrackSelectionParameters params = exo.getTrackSelectionParameters().buildUpon()
+                .setAudioOffloadPreferences(new androidx.media3.common.TrackSelectionParameters.AudioOffloadPreferences.Builder()
+                    .setAudioOffloadMode(enable
+                        ? androidx.media3.common.TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_ENABLED
+                        : androidx.media3.common.TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_DISABLED)
+                    .build())
+                .build();
+            exo.setTrackSelectionParameters(params);
+            exo.seekTo(0); // 触发重新解码以应用 offload 切换
+        } catch (Exception ignore) {}
+    }`;
+    if (exo.includes(anchor)) {
+      exo = exo.replace(anchor, anchor + add);
+      fs.writeFileSync(exoFile, exo, 'utf8');
+      console.log('ExoPlayback: added setAudioOffload().');
+    } else {
+      console.log('ExoPlayback: could not locate getAudioSessionId() anchor.');
+    }
+  }
+} catch (e) { console.error('Error patching ExoPlayback setAudioOffload:', e.message); }
+
+try {
+  // 2) MusicModule.java 加 @ReactMethod setAudioOffload
+  const mmFile = path.join(TP_ROOT, 'android/src/main/java/com/guichaguri/trackplayer/module/MusicModule.java');
+  let mm = fs.readFileSync(mmFile, 'utf8');
+  if (mm.includes('public void setAudioOffload')) {
+    console.log('MusicModule: setAudioOffload already added.');
+  } else {
+    const anchor = `    public void getAudioSessionId(final Promise callback) {
+        waitForConnection(() -> {
+            int id = binder.getPlayback().getAudioSessionId();
+            callback.resolve(id == C.AUDIO_SESSION_ID_UNSET ? 0 : id);
+        });
+    }`;
+    const add = `
+    @ReactMethod
+    public void setAudioOffload(final boolean enable, final Promise callback) {
+        waitForConnection(() -> {
+            binder.getPlayback().setAudioOffload(enable);
+            callback.resolve(null);
+        });
+    }`;
+    if (mm.includes(anchor)) {
+      mm = mm.replace(anchor, anchor + add);
+      fs.writeFileSync(mmFile, mm, 'utf8');
+      console.log('MusicModule: added setAudioOffload @ReactMethod.');
+    } else {
+      console.log('MusicModule: could not locate getAudioSessionId() anchor.');
+    }
+  }
+} catch (e) { console.error('Error patching MusicModule setAudioOffload:', e.message); }
+
+try {
+  // 3) lib/trackPlayer.js + .d.ts 暴露 setAudioOffload
+  const libFile = path.join(TP_ROOT, 'lib/trackPlayer.js');
+  let lib = fs.readFileSync(libFile, 'utf8');
+  if (lib.includes('function setAudioOffload')) {
+    console.log('lib: setAudioOffload already added.');
+  } else {
+    const fnAnchor = 'function getState() {';
+    const fn = `function setAudioOffload(enable) {
+    return __awaiter(this, void 0, void 0, function () {
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    if (!isSetupedPlayer)
+                        return [2 /*return*/, Promise.resolve()];
+                    return [4 /*yield*/, TrackPlayer.setAudioOffload(enable)];
+                case 1: return [2 /*return*/];
+            }
+        });
+    });
+}
+function getState() {`;
+    if (lib.includes(fnAnchor)) {
+      lib = lib.replace(fnAnchor, fn, 1);
+      const g = 'getAudioSessionId: getAudioSessionId,';
+      if (lib.includes(g)) lib = lib.replace(g, g + '\n    setAudioOffload: setAudioOffload,');
+      fs.writeFileSync(libFile, lib, 'utf8');
+      console.log('lib/trackPlayer.js: added setAudioOffload fn + getter.');
+    } else {
+      console.log('lib: could not locate getState() anchor.');
+    }
+  }
+  // d.ts
+  const dtsFile = path.join(TP_ROOT, 'lib/trackPlayer.d.ts');
+  let dts = fs.readFileSync(dtsFile, 'utf8');
+  if (!dts.includes('setAudioOffload')) {
+    dts = dts.replace('declare function getAudioSessionId(): Promise<number>;',
+      'declare function getAudioSessionId(): Promise<number>;\ndeclare function setAudioOffload(enable: boolean): Promise<void>;');
+    dts = dts.replace('    getAudioSessionId: typeof getAudioSessionId;',
+      '    getAudioSessionId: typeof getAudioSessionId;\n    setAudioOffload: typeof setAudioOffload;');
+    fs.writeFileSync(dtsFile, dts, 'utf8');
+    console.log('lib/trackPlayer.d.ts: added setAudioOffload declarations.');
+  }
+} catch (e) { console.error('Error patching lib setAudioOffload:', e.message); }
