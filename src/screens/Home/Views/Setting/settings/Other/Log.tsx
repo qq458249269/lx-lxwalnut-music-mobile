@@ -21,6 +21,7 @@ export default memo(() => {
   const [isEnableSyncErrorLog, setIsEnableSyncErrorLog] = useState(global.lx.isEnableSyncLog)
   const [isEnableUserApiLog, setIsEnableUserApiLog] = useState(global.lx.isEnableUserApiLog)
   const [isEnableWebDAVLog, setIsEnableWebDAVLog] = useState(settingState.setting['common.isEnableWebDAVLog'])
+  const [isEnableRhythmLog, setIsEnableRhythmLog] = useState(settingState.setting['playDetail.visualizer.debugLog'])
 
   const getErrorLog = () => {
     void getLogs().then((log) => {
@@ -59,6 +60,11 @@ export default memo(() => {
     updateSetting({ 'common.isEnableWebDAVLog': enable })
   }
 
+  const handleSetEnableRhythmLog = (enable: boolean) => {
+    setIsEnableRhythmLog(enable)
+    updateSetting({ 'playDetail.visualizer.debugLog': enable })
+  }
+
   useEffect(() => {
     isUnmountedRef.current = false
     return () => {
@@ -84,6 +90,11 @@ export default memo(() => {
             check={isEnableWebDAVLog}
             label={t('setting_other_log_webdav_log')}
             onChange={handleSetEnableWebDAVLog}
+          />
+          <CheckBoxItem
+            check={isEnableRhythmLog}
+            label={t('setting_other_log_rhythm_log')}
+            onChange={handleSetEnableRhythmLog}
           />
         </View>
         <View style={styles.btn}>
