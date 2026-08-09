@@ -116,9 +116,9 @@ class LxmHeadlessServer {
     return this.prewarmedUrl
   }
 
-  async getSongUrl(): Promise<string> {
+  async getSongUrl(isRefresh = false): Promise<string> {
     const pMusicInfo = (playerState.playMusicInfo as any)?.musicInfo
-    wb('URL', '开始获取', { hasMusicInfo: !!pMusicInfo })
+    wb('URL', '开始获取', { hasMusicInfo: !!pMusicInfo, isRefresh })
     if (!pMusicInfo) { wb('URL', '无 musicInfo，返回空'); return '' }
 
     const available = Object.keys((pMusicInfo.meta as any)?._qualitys ?? {}) as string[]
@@ -128,7 +128,7 @@ class LxmHeadlessServer {
     for (const q of qualitiesToTry) {
       try {
         wb('URL', '尝试音质', { quality: q, id: pMusicInfo.id })
-        const url = await getMusicUrl({ musicInfo: pMusicInfo, quality: q as any, isRefresh: false, allowToggleSource: false })
+        const url = await getMusicUrl({ musicInfo: pMusicInfo, quality: q as any, isRefresh, allowToggleSource: false })
         wb('URL', '获取结果', { quality: q, ok: !!url, urlLen: url?.length || 0 })
         if (url && url.length > 10) {
           wb('URL', '音质成功', { quality: q, urlLen: url.length })

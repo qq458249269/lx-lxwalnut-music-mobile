@@ -23,10 +23,13 @@ export class WebViewSyncManager {
   private dispatchLock = false
   private lastPosition = 0
   private webViewRef: React.RefObject<any>
+  // 音频缓冲/加载失败重试计数（限 MAX_AUDIO_RETRY 次）
+  private audioRetryCount = 0
 
   private static SWITCH_DEBOUNCE_MS = 800
   private static POLL_INTERVAL = 150
   private static POLL_TIMEOUT = 8000
+  private static MAX_AUDIO_RETRY = 2
 
   constructor(webViewRef: React.RefObject<any>) {
     this.webViewRef = webViewRef
@@ -92,6 +95,7 @@ export class WebViewSyncManager {
     if (!listId || !item) return
     // 切歌后一律从头播放：清掉进入时的续播进度，避免「上一首」回到进入时那首又续播其进度
     global.lx.visualizerResumePos = 0
+    this.audioRetryCount = 0
     this.lastDispatchedId = ''
     this.markSwitchStart(item.id)
     try {
@@ -169,7 +173,16 @@ export class WebViewSyncManager {
         case 'playMode': this.setPlayMode(data.mode || 'listLoop'); break
         case 'needTrackData': wb('Msg', 'WebView needTrackData'); if (!this.isSwitchingTrack) this.dispatch(); break
         case 'exitSync': this.deactivate(); break
-        case 'audioError': wb('AudioError', 'WebView 音频播放失败', { code: data.code, message: data.message }); break
+        case 'audioError':
+          // 缓冲/加载失败：限次重试（刷新 URL 重新拉流），超限则放弃
+          if (this.audioRetryCount < WebViewSyncManager.MAX_AUDIO_RETRY) {
+            this.audioRetryCount++
+            wb('AudioError', '重试播放', { retry: this.audioRetryCount, code: data.code, message: data.message })
+            setTimeout(() => this.dispatch(true), 500)
+          } else {
+            wb('AudioError', '重试耗尽，放弃', { code: data.code, message: data.message })
+          }
+          break
         default: wb('Msg', '未知消息', { type: data.type })
       }
       this.syncCallbacks.forEach(cb => cb(data.type, data))
@@ -182,7 +195,7 @@ export class WebViewSyncManager {
     if (i >= 0) this.switchToTrack(i)
   }
 
-  private async dispatch() {
+  private async dispatch(forceRefresh = false) {
     if (this.dispatchLock) { wb('Dispatch', '被锁，跳过'); return }
     this.dispatchLock = true
     try {
@@ -202,8 +215,10 @@ export class WebViewSyncManager {
 
       wb('Dispatch', '获取数据', { id: uiId, name: pMusicInfo.name })
       const [url, lrc] = await Promise.all([
-        // 优先用进入律动时预取的 URL（已缓存），仅当缓存对应同一首时有效；切歌后回退现拉
-        lxmHeadlessServer.getPrewarmedUrl(uiId) || lxmHeadlessServer.getSongUrl(),
+        // 优先用预取 URL；缓冲失败重试(forceRefresh)时强制刷新 URL 重新拉流
+        forceRefresh
+          ? lxmHeadlessServer.getSongUrl(true)
+          : (lxmHeadlessServer.getPrewarmedUrl(uiId) || lxmHeadlessServer.getSongUrl()),
         lxmHeadlessServer.getLrc(),
       ])
       wb('Dispatch', '数据获取完成', { urlLen: url?.length || 0, lrcLen: lrc?.length || 0, isReady: (lxmHeadlessServer as any).isReady })
