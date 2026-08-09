@@ -38,7 +38,8 @@ const initial = async ({
     maxBuffer: 1000,
     waitForBuffer: true,
     handleAudioFocus: isHandleAudioFocus,
-    audioOffload: isEnableAudioOffload,
+    // 始终关闭 audioOffload：开启时 ExoPlayer 走 DSP 硬解，Visualizer 无法捕获频谱(error -3)
+    audioOffload: false,
     autoUpdateMetadata: false,
   })
   global.lx.playerStatus.isInitialized = true

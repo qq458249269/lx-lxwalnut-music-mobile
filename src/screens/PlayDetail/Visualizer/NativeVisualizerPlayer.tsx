@@ -62,14 +62,6 @@ const NativeVisualizerPlayer = memo(forwardRef<NativeVisualizerPlayerHandle, {
     }
   }, [audioSessionId])
 
-  // audioOffload 开启时 Visualizer 无法捕获频谱(error -3)。
-  // active 时关闭 offload(软解可 attach)，失活恢复。
-  useEffect(() => {
-    try {
-      void TrackPlayer.setAudioOffload(!active)
-    } catch {}
-  }, [active])
-
   const mode = modeProp ?? innerMode
 
   // 未进入时无数采；退出时 active=false，native detach Visualizer
