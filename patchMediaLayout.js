@@ -487,21 +487,18 @@ public class VisualizerAudioProcessor extends BaseAudioProcessor {
 } catch (e) { console.error('Error creating VisualizerAudioProcessor:', e.message); }
 
 try {
-  // 2) MusicManager.java:renderersFactory 保持默认 factory
-  // AudioProcessor 挂载曾导致播放失败(音频加载出错)，已回退。VisualizerAudioProcessor.java
-  // 保留生成(供 VisualizerBarView 引用)，但不再挂到 ExoPlayer。
+  // 2) MusicManager.java:renderersFactory 挂载 AudioProcessor(提供频谱,单音频源)
+  // 透传已按 media3 官方示例修正(limit 还原 + try-catch)，不破坏播放。
   const mmFile = path.join(TP_ROOT, 'android/src/main/java/com/guichaguri/trackplayer/service/MusicManager.java');
   let mm = fs.readFileSync(mmFile, 'utf8');
+  const created = 'DefaultRenderersFactory renderersFactory = VisualizerAudioProcessor.createFactory(service);';
   const desired = 'DefaultRenderersFactory renderersFactory = new DefaultRenderersFactory(service);';
   if (mm.includes('VisualizerAudioProcessor.createFactory')) {
-    const created = 'DefaultRenderersFactory renderersFactory = VisualizerAudioProcessor.createFactory(service);';
-    if (mm.includes(created)) {
-      mm = mm.replace(created, desired);
-      fs.writeFileSync(mmFile, mm, 'utf8');
-      console.log('MusicManager: reverted to default renderersFactory (AudioProcessor disabled).');
-    }
+    console.log('MusicManager: AudioProcessor factory already applied.');
   } else if (mm.includes(desired)) {
-    console.log('MusicManager: renderersFactory already default.');
+    mm = mm.replace(desired, created);
+    fs.writeFileSync(mmFile, mm, 'utf8');
+    console.log('MusicManager: renderersFactory -> VisualizerAudioProcessor.createFactory.');
   } else {
     console.log('MusicManager: could not locate renderersFactory line.');
   }
