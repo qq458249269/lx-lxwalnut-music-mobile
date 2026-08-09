@@ -255,9 +255,9 @@ declare global {
       'playDetail.landscapeImmersion.showControl': boolean
 
       /**
-       * 播放详情页-横屏时自动进入可视化模式
+       * 播放详情页-律动特效开关
        */
-      'playDetail.visualizer.autoLandscape': boolean
+      'playDetail.visualizer.enable': boolean
 
       /**
        * 播放详情页-律动形态（0=柱状 1=波形）
@@ -273,6 +273,11 @@ declare global {
        * 播放详情页-律动 3D 透视 + 粒子效果
        */
       'playDetail.visualizer.threeD': boolean
+
+      /**
+       * 播放详情页-律动调试日志
+       */
+      'playDetail.visualizer.debugLog': boolean
 
       /**
        * 是否启用桌面歌词

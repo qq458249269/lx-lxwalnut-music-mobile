@@ -28,10 +28,11 @@ export default memo(({ componentId }: {
   // 律动只在播放时激活：暂停/停止时 native detach，避免频谱挂载干扰音频
   const isPlay = useIsPlay()
   // 律动设置（详情页右上角设置弹窗控制）
-  const rhythmEnabled = useSettingValue('playDetail.visualizer.autoLandscape')
+  const rhythmEnabled = useSettingValue('playDetail.visualizer.enable')
   const rhythmMode = useSettingValue('playDetail.visualizer.mode')
   const rhythmOpacity = useSettingValue('playDetail.visualizer.opacity')
   const rhythmThreeD = useSettingValue('playDetail.visualizer.threeD')
+  const rhythmDebugLog = useSettingValue('playDetail.visualizer.debugLog')
   const showRhythm = rhythmEnabled && isPlay
 
   useEffect(() => {
@@ -73,6 +74,7 @@ export default memo(({ componentId }: {
             mode={rhythmMode as 0 | 1}
             opacity={rhythmOpacity}
             threeD={rhythmThreeD}
+            debugLog={rhythmDebugLog}
             active={isPlay}
           />
         )}

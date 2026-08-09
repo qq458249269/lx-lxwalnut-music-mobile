@@ -13,6 +13,11 @@ import android.util.AttributeSet;
 import android.util.Log;
 import android.view.View;
 
+import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.ReactContext;
+import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.uimanager.events.RCTEventEmitter;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -118,9 +123,17 @@ public class VisualizerBarView extends View {
             if (mag > maxMag) maxMag = mag;
           }
           if (maxMag > 2f) mGotData = true;
+          // 限频上报数据日志：确认收到 FFT 数据与峰值（诊断波形不动）
+          if (mGotData && mLastDataLogTime < 0) {
+            mLastDataLogTime = System.currentTimeMillis();
+          } else if (mGotData && System.currentTimeMillis() - mLastDataLogTime > 2000) {
+            mLastDataLogTime = System.currentTimeMillis();
+            sendRhythmLog("FFT data ok peak=" + maxMag + " levels[0]=" + mLevels[0] + " levels[32]=" + mLevels[32]);
+          }
           postInvalidate();
         }
       };
+  private long mLastDataLogTime = -1;
 
   public VisualizerBarView(Context context) {
     super(context);
@@ -141,7 +154,7 @@ public class VisualizerBarView extends View {
 
   /** active 开关：为 false 立即释放频谱采样（性能：未进律动不采） */
   public void setActive(boolean active) {
-    Log.d("RhythmDebug", "setActive active=" + active + " (was " + mActive + ")");
+    sendRhythmLog("setActive active=" + active + " (was " + mActive + ")");
     mActive = active;
     if (active) {
       attachAudioSession(mAudioSessionId);
@@ -179,7 +192,7 @@ public class VisualizerBarView extends View {
       mVisualizer.setEnabled(true);
       mAttached = true;
       mAudioSessionId = sessionId;
-      Log.d("RhythmDebug", "attach OK session=" + sessionId + " captureRate=" + mCaptureRate);
+      sendRhythmLog("attach OK session=" + sessionId + " captureRate=" + mCaptureRate);
       return true;
     } catch (Exception e) {
       if (mVisualizer != null) {
@@ -187,7 +200,7 @@ public class VisualizerBarView extends View {
         mVisualizer = null;
       }
       mAttached = false;
-      Log.e("RhythmDebug", "attach FAIL session=" + sessionId + " err=" + e.getClass().getSimpleName() + ": " + e.getMessage());
+      sendRhythmLog("attach FAIL session=" + sessionId + " err=" + e.getClass().getSimpleName() + ": " + e.getMessage());
       return false;
     }
   }
@@ -216,7 +229,7 @@ public class VisualizerBarView extends View {
     detachAudioSession(); // 换 session 前先释放旧的
     mAudioSessionId = audioSessionId;
     mGotData = false;
-    Log.d("RhythmDebug", "attachAudioSession target=" + audioSessionId + " active=" + mActive);
+    sendRhythmLog("attachAudioSession target=" + audioSessionId + " active=" + mActive);
     // 后台线程采，避免卡 UI
     mCaptureThread = new HandlerThread("visualizer-capture");
     mCaptureThread.start();
@@ -271,6 +284,18 @@ public class VisualizerBarView extends View {
     mThreeD = threeD;
     if (!threeD) mParticles.clear();
     postInvalidate();
+  }
+
+  /** 上报调试日志到 JS（onRhythmLog 事件），用于「设置-错误日志-调试日志」 */
+  private void sendRhythmLog(String msg) {
+    Log.d("RhythmDebug", msg);
+    try {
+      ReactContext reactContext = (ReactContext) getContext();
+      WritableMap event = Arguments.createMap();
+      event.putString("message", msg);
+      reactContext.getJSModule(RCTEventEmitter.class)
+          .receiveEvent(getId(), "topRhythmLog", event);
+    } catch (Exception ignore) {}
   }
 
   @Override

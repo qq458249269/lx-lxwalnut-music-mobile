@@ -204,6 +204,7 @@
   "play_detail_setting_visualizer_mode_wave": "波形",
   "play_detail_setting_visualizer_opacity": "律動透明度",
   "play_detail_setting_visualizer_3d": "3D 透視 + 粒子",
+  "play_detail_setting_visualizer_debug_log": "調試日誌",
   "play_detail_setting_cover_spin": "封面旋轉效果",
   "play_detail_setting_lrc_align_center": "置中",
   "play_detail_setting_lrc_align_left": "置左",

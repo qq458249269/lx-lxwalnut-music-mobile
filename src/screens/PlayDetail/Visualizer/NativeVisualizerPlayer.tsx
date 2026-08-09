@@ -3,6 +3,7 @@ import { View, StyleProp, ViewStyle } from 'react-native'
 import { requireNativeComponent } from 'react-native'
 import { createStyle } from '@/utils/tools'
 import TrackPlayer from 'react-native-track-player'
+import { log } from '@/utils/log'
 
 // Native 律动 View：<VisualizerBarView />
 // props: audioSessionId(int, 真实 session>0 同 uid 捕获无需权限) / mode(int, 0=bar 1=wave) / active(bool)
@@ -25,8 +26,10 @@ const NativeVisualizerPlayer = memo(forwardRef<NativeVisualizerPlayerHandle, {
   opacity?: number
   /** 3D 透视 + 粒子效果 */
   threeD?: boolean
+  /** 调试日志开关：native onRhythmLog 写入「设置-错误日志」 */
+  debugLog?: boolean
   active?: boolean
-}>(({ style, audioSessionId, mode: modeProp, opacity, threeD = true, active = true }, ref) => {
+}>(({ style, audioSessionId, mode: modeProp, opacity, threeD = true, debugLog = false, active = true }, ref) => {
   // 形态：优先外部 prop（设置控制），否则组件内部状态
   const [innerMode, setInnerMode] = useState<0 | 1>(0)
   const togglerRef = useRef<0 | 1>(0)
@@ -69,6 +72,9 @@ const NativeVisualizerPlayer = memo(forwardRef<NativeVisualizerPlayerHandle, {
           mode={mode}
           threeD={threeD}
           active={active}
+          onRhythmLog={(e: any) => {
+            if (debugLog) log.info('[律动]', e?.nativeEvent?.message ?? '')
+          }}
         />
       )}
     </View>

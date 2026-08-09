@@ -34,10 +34,11 @@ export default memo(({ componentId }: { componentId: string }) => {
   // 律动只在播放时激活：暂停/停止时 native detach，避免频谱挂载干扰音频
   const isPlay = useIsPlay()
   // 竖屏律动受「横屏自动律动」开关控制（诊断用：关掉开关可对比是否律动导致音频报错）
-  const rhythmEnabled = useSettingValue('playDetail.visualizer.autoLandscape')
+  const rhythmEnabled = useSettingValue('playDetail.visualizer.enable')
   const rhythmMode = useSettingValue('playDetail.visualizer.mode')
   const rhythmOpacity = useSettingValue('playDetail.visualizer.opacity')
   const rhythmThreeD = useSettingValue('playDetail.visualizer.threeD')
+  const rhythmDebugLog = useSettingValue('playDetail.visualizer.debugLog')
   const showRhythm = rhythmEnabled && isPlay
 
   const onPageSelected = ({ nativeEvent }: PagerViewOnPageSelectedEvent) => {
@@ -91,6 +92,7 @@ export default memo(({ componentId }: { componentId: string }) => {
             mode={rhythmMode as 0 | 1}
             opacity={rhythmOpacity}
             threeD={rhythmThreeD}
+            debugLog={rhythmDebugLog}
             active={isPlay}
           />
         )}

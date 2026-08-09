@@ -12,15 +12,17 @@ import styles from './style';
 export default () => {
   const t = useI18n();
   const theme = useTheme();
-  const enabled = useSettingValue('playDetail.visualizer.autoLandscape');
+  const enabled = useSettingValue('playDetail.visualizer.enable');
   const mode = useSettingValue('playDetail.visualizer.mode');
   const opacity = useSettingValue('playDetail.visualizer.opacity');
   const threeD = useSettingValue('playDetail.visualizer.threeD');
+  const debugLog = useSettingValue('playDetail.visualizer.debugLog');
 
-  const setEnabled = (v: boolean) => updateSetting({ 'playDetail.visualizer.autoLandscape': v });
+  const setEnabled = (v: boolean) => updateSetting({ 'playDetail.visualizer.enable': v });
   const setMode = (m: number) => updateSetting({ 'playDetail.visualizer.mode': m });
   const setOpacity = (v: number) => updateSetting({ 'playDetail.visualizer.opacity': v });
   const setThreeD = (v: boolean) => updateSetting({ 'playDetail.visualizer.threeD': v });
+  const setDebugLog = (v: boolean) => updateSetting({ 'playDetail.visualizer.debugLog': v });
 
   return (
     <>
@@ -56,6 +58,15 @@ export default () => {
                 check={threeD}
                 label={t('play_detail_setting_visualizer_3d')}
                 onChange={setThreeD}
+              />
+            </View>
+          </View>
+          <View style={styles.container}>
+            <View style={styles.content}>
+              <CheckBox
+                check={debugLog}
+                label={t('play_detail_setting_visualizer_debug_log')}
+                onChange={setDebugLog}
               />
             </View>
           </View>
