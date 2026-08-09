@@ -8,7 +8,9 @@ import android.graphics.Paint;
 import android.graphics.Shader;
 import android.media.AudioManager;
 import android.media.audiofx.Visualizer;
+import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Looper;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.View;
@@ -226,6 +228,13 @@ public class VisualizerBarView extends View {
    *  全部失败时画空闲柱子（mAttached=false），不请求任何权限。 */
   public void attachAudioSession(int audioSessionId) {
     if (audioSessionId == mAudioSessionId && mAttached) return;
+    // 无效 session（-1/0）不 attach，等真实 session 到来
+    if (audioSessionId <= 0) {
+      mAudioSessionId = audioSessionId;
+      mAttached = false;
+      postInvalidate();
+      return;
+    }
     detachAudioSession(); // 换 session 前先释放旧的
     mAudioSessionId = audioSessionId;
     mGotData = false;
@@ -234,27 +243,45 @@ public class VisualizerBarView extends View {
     mCaptureThread = new HandlerThread("visualizer-capture");
     mCaptureThread.start();
 
-    AudioManager am = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
-    int target = audioSessionId;
-
-    // 1) 固定/指定 session（>0 同 uid 捕获无需权限）
-    if (target > 0) {
-      if (tryAttach(target)) { postInvalidate(); return; }
-    }
+    // 1) 指定 session（>0 同 uid 捕获无需权限）
+    if (tryAttach(audioSessionId)) { postInvalidate(); return; }
 
     // 2) 遍历系统活跃 session 兜底（如 audioOffload 覆盖了固定 id）
+    AudioManager am = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
     if (am != null && tryAttachActiveSessions(am)) {
       postInvalidate();
       return;
     }
 
-    // 全部失败：不报错，画空闲柱子（等下次 updateSessionId 重试）
+    // 3) attach 失败（如 error -3 播放器音频流未就绪）：延迟重试一次
     mAttached = false;
     postInvalidate();
+    scheduleRetry();
+  }
+
+  private final android.os.Handler mRetryHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+  private boolean mRetryScheduled = false;
+
+  private void scheduleRetry() {
+    if (mRetryScheduled || !mActive || mAudioSessionId <= 0) return;
+    mRetryScheduled = true;
+    sendRhythmLog("schedule retry attach session=" + mAudioSessionId);
+    mRetryHandler.postDelayed(() -> {
+      mRetryScheduled = false;
+      if (!mActive || mAttached) return;
+      sendRhythmLog("retry attach session=" + mAudioSessionId);
+      if (tryAttach(mAudioSessionId) || tryAttachActiveSessions((AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE))) {
+        postInvalidate();
+      } else {
+        scheduleRetry();
+      }
+    }, 1000);
   }
 
   public void detachAudioSession() {
     mAttached = false;
+    mRetryHandler.removeCallbacksAndMessages(null);
+    mRetryScheduled = false;
     if (mCaptureThread != null) {
       mCaptureThread.quitSafely();
       mCaptureThread = null;
