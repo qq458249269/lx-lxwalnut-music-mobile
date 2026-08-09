@@ -106,9 +106,6 @@ export default memo(() => {
   const showLandscapeImmersionSetting = () => {
     landscapeImmersionSettingPopupRef.current?.show()
   }
-  const openVisualizer = () => {
-    navigations.pushVisualizerScreen(commonState.componentIds[commonState.componentIds.length - 1]?.id!)
-  }
   return (
     <View
       style={{ height: HEADER_HEIGHT + statusBarHeight, paddingTop: statusBarHeight }}
@@ -118,7 +115,6 @@ export default memo(() => {
       <View style={styles.container}>
         <Btn icon="chevron-left" onPress={back} />
         <Title />
-        <Btn icon="svg:web-visualizer" color={theme['c-primary']} onPress={openVisualizer} />
         <Btn icon="svg:landscape-immersion" color={theme['c-primary']} onPress={showLandscapeImmersionSetting} />
         <TimeoutExitBtn />
         <Btn icon="slider" onPress={showSetting} />

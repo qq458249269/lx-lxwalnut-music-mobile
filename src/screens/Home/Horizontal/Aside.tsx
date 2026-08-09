@@ -7,7 +7,8 @@ import { SvgIcon } from '@/components/common/SvgIcon'
 import { confirmDialog, createStyle, exitApp as backHome } from '@/utils/tools'
 import { NAV_MENUS } from '@/config/constant'
 import type { InitState } from '@/store/common/state'
-// import commonState from '@/store/common/state'
+import { navigations } from '@/navigation'
+import commonState from '@/store/common/state'
 import { exitApp, setNavActiveId } from '@/core/common'
 import { BorderWidths } from '@/theme'
 import { useSettingValue } from '@/store/setting/hook'
@@ -171,6 +172,18 @@ export default memo(() => {
       </ScrollView>
       {global.lx.isCarMode && showBackBtn ? <MenuItem id="back_home" icon="home" onPress={handlePress} /> : null}
       {global.lx.isCarMode && showExitBtn ? <MenuItem id="nav_exit" icon="exit2" onPress={handlePress} /> : null}
+      {/* 律动入口：进独立全屏律动页 */}
+      <TouchableOpacity
+        style={styles.menuItem}
+        onPress={() => {
+          global.app_event.changeMenuVisible(false)
+          navigations.pushVisualizerScreen(commonState.componentIds[commonState.componentIds.length - 1]?.id!)
+        }}
+      >
+        <View style={styles.iconContent}>
+          <SvgIcon name="web-visualizer" size={20} color={theme['c-font-label']} />
+        </View>
+      </TouchableOpacity>
     </View>
   )
 })

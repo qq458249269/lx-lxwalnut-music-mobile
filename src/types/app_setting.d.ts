@@ -254,10 +254,6 @@ declare global {
        */
       'playDetail.landscapeImmersion.showControl': boolean
 
-      /**
-       * 播放详情页-横屏时自动进入可视化模式
-       */
-      'playDetail.visualizer.autoLandscape': boolean
 
       /**
        * 是否启用桌面歌词
