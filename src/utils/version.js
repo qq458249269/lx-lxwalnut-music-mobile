@@ -10,13 +10,15 @@ const [, , repo] = (repository.url.match(/github\.com\/([^/]+)\/([^/]+?)(?:\.git
 const abis = ['arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86', 'universal']
 
 // 优先用国内可达的 jsdelivr（raw.githubusercontent.com 在国内常被墙，放最后兜底）。
-// 仅依赖 jsdelivr 默认分支（main/master 自动跟随），无需硬编码分支名。
+// jsdelivr 的 gh 路径无 @分支时默认解析 master，本项目默认分支是 main——
+// 必须显式写 @main，否则 jsdelivr 三个源全 404（导致更新检查失败）。
+// 最后兜底用 GitHub Releases API：直接读最新 release（tag_name→version，body→desc），
+// 不依赖 CDN 分支/缓存。
 const address = [
-  [`https://cdn.jsdelivr.net/gh/${repo}/${name}/publish/version.json`, 'direct'],
-  [`https://fastly.jsdelivr.net/gh/${repo}/${name}/publish/version.json`, 'direct'],
-  [`https://gcore.jsdelivr.net/gh/${repo}/${name}/publish/version.json`, 'direct'],
-  // ['https://registry.npmjs.org/lx-music-mobile-version-info/latest', 'npm'],
-  // ['http://cdn.stsky.cn/lx-music/mobile/version.json', 'direct'],
+  [`https://cdn.jsdelivr.net/gh/${repo}/${name}@main/publish/version.json`, 'direct'],
+  [`https://fastly.jsdelivr.net/gh/${repo}/${name}@main/publish/version.json`, 'direct'],
+  [`https://gcore.jsdelivr.net/gh/${repo}/${name}@main/publish/version.json`, 'direct'],
+  [`https://api.github.com/repos/${repo}/${name}/releases/latest`, 'release'],
   [`https://raw.githubusercontent.com/${repo}/${name}/main/publish/version.json`, 'direct'],
 ]
 
@@ -40,8 +42,10 @@ const request = async (url, retryNum = 0) => {
 
 const getDirectInfo = async (url) => {
   return request(url).then((info) => {
-    if (info.version == null) throw new Error('failed')
-    return info
+    // fetchData 返回的 body 是字符串，需 JSON.parse 后访问字段
+    const parsed = typeof info == 'string' ? JSON.parse(info) : info
+    if (parsed.version == null) throw new Error('failed')
+    return parsed
   })
 }
 
@@ -54,6 +58,21 @@ const getNpmPkgInfo = async (url) => {
   })
 }
 
+// GitHub Releases API：直接读最新 release，tag_name→version，body→desc。
+const getReleaseInfo = async (url) => {
+  return request(url).then((json) => {
+    const parsed = typeof json == 'string' ? JSON.parse(json) : json
+    const tag = parsed.tag_name
+    const body = parsed.body
+    if (tag == null) throw new Error('failed')
+    return {
+      version: String(tag).replace(/^v/, ''),
+      desc: body || '',
+      history: [],
+    }
+  })
+}
+
 export const getVersionInfo = async (index = 0) => {
   const [url, source] = address[index]
   let promise
@@ -63,6 +82,9 @@ export const getVersionInfo = async (index = 0) => {
       break
     case 'npm':
       promise = getNpmPkgInfo(url)
+      break
+    case 'release':
+      promise = getReleaseInfo(url)
       break
   }
 
