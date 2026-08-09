@@ -198,6 +198,8 @@ dependencies {
     // implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
     implementation 'wang.harlon.quickjs:wrapper-android:2.4.0'
     implementation 'com.squareup.okhttp3:okhttp:4.9.3'
+    // 律动 AudioProcessor 数据源：app 访问 VisualizerAudioProcessor(继承 BaseAudioProcessor)需要 media3-common
+    implementation 'androidx.media3:media3-common:1.8.0'
 
   if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
