@@ -89,7 +89,7 @@ export default memo(({ componentId }: { componentId: string }) => {
         {showRhythm && (
           <NativeVisualizerPlayer
             style={styles.rhythmBg}
-            mode={rhythmMode as 0 | 1}
+            mode={rhythmMode as any}
             opacity={rhythmOpacity}
             threeD={rhythmThreeD}
             debugLog={rhythmDebugLog}

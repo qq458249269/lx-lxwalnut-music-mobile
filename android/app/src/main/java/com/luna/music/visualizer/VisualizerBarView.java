@@ -37,9 +37,22 @@ import java.util.List;
  */
 public class VisualizerBarView extends View {
   // 律动形态
-  public static final int MODE_BARS = 0;
-  public static final int MODE_WAVE = 1;
+  public static final int MODE_BARS = 0;      // 柱状
+  public static final int MODE_WAVE = 1;      // 波形
+  public static final int MODE_RING_BARS = 2; // 环形频谱
+  public static final int MODE_RING_WAVE = 3; // 环形波浪
+  public static final int MODE_MIRROR_BARS = 4; // 双对称柱状
+  public static final int MODE_RADIAL_BEAMS = 5; // 放射光柱
   private static final int BUCKETS = 64;
+
+  /** 是否为波形类形态(用 mWave 数据) */
+  private static boolean isWaveMode(int mode) {
+    return mode == MODE_WAVE || mode == MODE_RING_WAVE;
+  }
+  /** 是否为柱状类形态(用 mLevels 数据) */
+  private static boolean isBarsMode(int mode) {
+    return mode == MODE_BARS || mode == MODE_RING_BARS || mode == MODE_MIRROR_BARS || mode == MODE_RADIAL_BEAMS;
+  }
 
   private Visualizer mVisualizer = null;
   private int mMode = MODE_BARS;
@@ -84,7 +97,7 @@ public class VisualizerBarView extends View {
         @Override
         public void onWaveFormDataCapture(Visualizer visualizer, byte[] waveform, int samplingRate) {
           // 波形模式：直接画 waveform
-          if (mMode == MODE_WAVE) {
+          if (isWaveMode(mMode)) {
             int n = waveform.length;
             if (n == 0) return;
             int step = Math.max(1, n / mWave.length);
@@ -103,7 +116,7 @@ public class VisualizerBarView extends View {
         @Override
         public void onFftDataCapture(Visualizer visualizer, byte[] fft, int samplingRate) {
           // 柱状模式：FFT 幅值
-          if (mMode != MODE_BARS) return;
+          if (!isBarsMode(mMode)) return;
           int n = Math.min(fft.length, 256);
           if (n < 4) return; // 数据太少不绘制，防越界
           // fft 格式：fft[0]=DC(实)，fft[1]=Nyquist(实)，之后每格 [real, imag]
@@ -339,15 +352,32 @@ public class VisualizerBarView extends View {
       drawIdleBars(canvas);
       return;
     }
-    if (mMode == MODE_WAVE) {
-      drawWave(canvas);
-    } else if (mThreeD) {
-      drawBars3D(canvas);
-      // 粒子叠加在 3D 柱状之上
-      updateParticles();
-      drawParticles(canvas);
-    } else {
-      drawBars(canvas);
+    switch (mMode) {
+      case MODE_RING_BARS:
+        drawRingBars(canvas);
+        break;
+      case MODE_RING_WAVE:
+        drawRingWave(canvas);
+        break;
+      case MODE_MIRROR_BARS:
+        drawMirrorBars(canvas);
+        break;
+      case MODE_RADIAL_BEAMS:
+        drawRadialBeams(canvas);
+        break;
+      case MODE_WAVE:
+        drawWave(canvas);
+        break;
+      default:
+        // MODE_BARS：3D 则透视柱状 + 粒子，否则平面柱状
+        if (mThreeD) {
+          drawBars3D(canvas);
+          updateParticles();
+          drawParticles(canvas);
+        } else {
+          drawBars(canvas);
+        }
+        break;
     }
   }
 
@@ -501,6 +531,144 @@ public class VisualizerBarView extends View {
       mParticlePaint.setColor(Color.argb((int) (p.alpha * 255), (int) (p.r * 255), (int) (p.g * 255), (int) (p.b * 255)));
       canvas.drawCircle(p.x, p.y, p.size, mParticlePaint);
     }
+  }
+
+  /** 环形频谱：mLevels 绕中心点环形分布成柱状光环 */
+  private void drawRingBars(Canvas canvas) {
+    int w = getWidth();
+    int h = getHeight();
+    if (w <= 0 || h <= 0) return;
+    float cx = w / 2f;
+    float cy = h / 2f;
+    float maxR = Math.min(w, h) * 0.42f;
+    float baseR = maxR * 0.55f; // 环内半径
+
+    Shader shader = new LinearGradient(cx - maxR, cy, cx + maxR, cy, mBarColor, mBarColor2, Shader.TileMode.CLAMP);
+    mPaint.setShader(shader);
+
+    int n = BUCKETS;
+    for (int i = 0; i < n; i++) {
+      // 平滑
+      float target = mLevels[i];
+      if (target > mSmoothed[i]) mSmoothed[i] = target;
+      else mSmoothed[i] *= mDecay;
+      float v = mSmoothed[i];
+      if (v < 0.001f) continue;
+      float angle = (float) (2 * Math.PI * i / n);
+      // 柱沿径向：从 baseR 向外延伸 v*barLen
+      float barLen = maxR * 0.42f * v;
+      float x0 = cx + (float) Math.cos(angle) * baseR;
+      float y0 = cy + (float) Math.sin(angle) * baseR;
+      float x1 = cx + (float) Math.cos(angle) * (baseR + barLen);
+      float y1 = cy + (float) Math.sin(angle) * (baseR + barLen);
+      // 柱宽
+      float barW = Math.max(2f, (float) (2 * Math.PI * baseR / n) * 0.7f);
+      canvas.drawLine(x0, y0, x1, y1, mPaint);
+      // 柱顶圆点
+      mPaint.setStrokeWidth(barW);
+      canvas.drawCircle(x1, y1, barW / 2f, mPaint);
+    }
+    mPaint.setShader(null);
+    mPaint.setStrokeWidth(1f);
+  }
+
+  /** 环形波浪：mWave 绕中心旋转成圆环曲线 */
+  private void drawRingWave(Canvas canvas) {
+    int w = getWidth();
+    int h = getHeight();
+    if (w <= 0 || h <= 0) return;
+    float cx = w / 2f;
+    float cy = h / 2f;
+    float baseR = Math.min(w, h) * 0.3f;
+
+    mPaint.setShader(null);
+    mPaint.setStyle(Paint.Style.STROKE);
+    mPaint.setStrokeWidth(Math.max(2f, h * 0.015f));
+    mPaint.setStrokeCap(Paint.Cap.ROUND);
+    mPaint.setColor(mBarColor);
+
+    int n = BUCKETS;
+    android.graphics.Path path = new android.graphics.Path();
+    for (int i = 0; i <= n; i++) {
+      // 平滑
+      float target = mWave[i % n];
+      mSmoothed[i % n] = mSmoothed[i % n] * mSmoothFactor + target * (1 - mSmoothFactor);
+      float v = mSmoothed[i % n];
+      float angle = (float) (2 * Math.PI * i / n);
+      float r = baseR + v * baseR * 0.7f;
+      float x = cx + (float) Math.cos(angle) * r;
+      float y = cy + (float) Math.sin(angle) * r;
+      if (i == 0) path.moveTo(x, y);
+      else path.lineTo(x, y);
+    }
+    path.close();
+    canvas.drawPath(path, mPaint);
+    mPaint.setStyle(Paint.Style.FILL);
+  }
+
+  /** 双对称柱状：mLevels 上下镜像，中轴线对称 */
+  private void drawMirrorBars(Canvas canvas) {
+    int w = getWidth();
+    int h = getHeight();
+    if (w <= 0 || h <= 0) return;
+    float midY = h * 0.5f;
+    float gap = w * 0.006f;
+    float barW = (w - gap * (BUCKETS - 1)) / BUCKETS;
+
+    Shader shader = new LinearGradient(0, 0, 0, h, mBarColor, mBarColor2, Shader.TileMode.CLAMP);
+    mPaint.setShader(shader);
+
+    for (int i = 0; i < BUCKETS; i++) {
+      float target = mLevels[i];
+      if (target > mSmoothed[i]) mSmoothed[i] = target;
+      else mSmoothed[i] *= mDecay;
+      float v = mSmoothed[i];
+      float barH = Math.max(2f, v * h * 0.42f);
+      float left = i * (barW + gap);
+      // 上镜像
+      canvas.drawRect(left, midY - barH, left + barW, midY, mPaint);
+      // 下镜像
+      canvas.drawRect(left, midY, left + barW, midY + barH, mPaint);
+    }
+    mPaint.setShader(null);
+    // 中轴线
+    mPaint.setColor(0x44FFFFFF);
+    canvas.drawRect(0, midY - 1f, w, midY + 1f, mPaint);
+  }
+
+  /** 放射光柱：从中心点向四周放射，长度 = mLevels */
+  private void drawRadialBeams(Canvas canvas) {
+    int w = getWidth();
+    int h = getHeight();
+    if (w <= 0 || h <= 0) return;
+    float cx = w / 2f;
+    float cy = h / 2f;
+    float maxR = Math.min(w, h) * 0.48f;
+
+    Shader shader = new LinearGradient(cx - maxR, cy, cx + maxR, cy, mBarColor, mBarColor2, Shader.TileMode.CLAMP);
+    mPaint.setShader(shader);
+
+    int n = BUCKETS;
+    for (int i = 0; i < n; i++) {
+      float target = mLevels[i];
+      if (target > mSmoothed[i]) mSmoothed[i] = target;
+      else mSmoothed[i] *= mDecay;
+      float v = mSmoothed[i];
+      if (v < 0.003f) continue;
+      float angle = (float) (2 * Math.PI * i / n);
+      float len = maxR * v;
+      // 放射线段：中心到 len
+      float x1 = cx + (float) Math.cos(angle) * len;
+      float y1 = cy + (float) Math.sin(angle) * len;
+      // 渐变透明度：从中心到边缘
+      mPaint.setStrokeWidth(Math.max(2f, 6f * v));
+      canvas.drawLine(cx, cy, x1, y1, mPaint);
+      // 端点头
+      mPaint.setStrokeWidth(Math.max(2f, 8f * v));
+      canvas.drawCircle(x1, y1, Math.max(2f, 3f * v), mPaint);
+    }
+    mPaint.setShader(null);
+    mPaint.setStrokeWidth(1f);
   }
 
   private void drawWave(Canvas canvas) {

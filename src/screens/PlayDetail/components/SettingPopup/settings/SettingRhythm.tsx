@@ -55,6 +55,36 @@ export default () => {
           <View style={styles.container}>
             <View style={styles.content}>
               <CheckBox
+                check={mode === 2}
+                label={t('play_detail_setting_visualizer_mode_ring_bars')}
+                onChange={() => setMode(2)}
+                marginRight={20}
+              />
+              <CheckBox
+                check={mode === 3}
+                label={t('play_detail_setting_visualizer_mode_ring_wave')}
+                onChange={() => setMode(3)}
+              />
+            </View>
+          </View>
+          <View style={styles.container}>
+            <View style={styles.content}>
+              <CheckBox
+                check={mode === 4}
+                label={t('play_detail_setting_visualizer_mode_mirror')}
+                onChange={() => setMode(4)}
+                marginRight={20}
+              />
+              <CheckBox
+                check={mode === 5}
+                label={t('play_detail_setting_visualizer_mode_radial')}
+                onChange={() => setMode(5)}
+              />
+            </View>
+          </View>
+          <View style={styles.container}>
+            <View style={styles.content}>
+              <CheckBox
                 check={threeD}
                 label={t('play_detail_setting_visualizer_3d')}
                 onChange={setThreeD}
