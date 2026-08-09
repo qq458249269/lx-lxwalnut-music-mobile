@@ -42,8 +42,10 @@ const request = async (url, retryNum = 0) => {
 
 const getDirectInfo = async (url) => {
   return request(url).then((info) => {
-    if (info.version == null) throw new Error('failed')
-    return info
+    // fetchData 返回的 body 是字符串，需 JSON.parse 后访问字段
+    const parsed = typeof info == 'string' ? JSON.parse(info) : info
+    if (parsed.version == null) throw new Error('failed')
+    return parsed
   })
 }
 
@@ -60,8 +62,9 @@ const getNpmPkgInfo = async (url) => {
 // 返回结构对齐 version.json（version/desc/history），供 checkUpdate 消费。
 const getReleaseInfo = async (url) => {
   return request(url).then((json) => {
-    const tag = json.tag_name
-    const body = json.body
+    const parsed = typeof json == 'string' ? JSON.parse(json) : json
+    const tag = parsed.tag_name
+    const body = parsed.body
     if (tag == null) throw new Error('failed')
     return {
       version: String(tag).replace(/^v/, ''),
