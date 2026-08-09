@@ -197,7 +197,10 @@ public class VisualizerBarView extends View {
         mVisualizer = null;
       }
       mVisualizer = new Visualizer(sessionId);
-      mVisualizer.setCaptureSize(Visualizer.getCaptureSizeRange()[1]);
+      // 用中档 capture size（最小~最大之间），避免最大尺寸在某些设备/ROM 触发 error -3
+      int[] range = Visualizer.getCaptureSizeRange();
+      int captureSize = range[0] + (range[1] - range[0]) / 2;
+      mVisualizer.setCaptureSize(captureSize);
       mVisualizer.setDataCaptureListener(
           mDataListener,
           mCaptureRate,
@@ -207,7 +210,7 @@ public class VisualizerBarView extends View {
       mVisualizer.setEnabled(true);
       mAttached = true;
       mAudioSessionId = sessionId;
-      sendRhythmLog("attach OK session=" + sessionId + " captureRate=" + mCaptureRate);
+      sendRhythmLog("attach OK session=" + sessionId + " captureSize=" + captureSize + " rate=" + mCaptureRate);
       return true;
     } catch (Exception e) {
       if (mVisualizer != null) {
@@ -241,6 +244,8 @@ public class VisualizerBarView extends View {
    *  全部失败时画空闲柱子（mAttached=false），不请求任何权限。 */
   public void attachAudioSession(int audioSessionId) {
     if (audioSessionId == mAudioSessionId && mAttached) return;
+    // 新一次 attach 尝试：重置重试计数
+    mRetryCount = 0;
     // 无效 session（-1/0）不 attach，等真实 session 到来
     if (audioSessionId <= 0) {
       mAudioSessionId = audioSessionId;
@@ -274,11 +279,18 @@ public class VisualizerBarView extends View {
 
   private final android.os.Handler mRetryHandler = new android.os.Handler(android.os.Looper.getMainLooper());
   private boolean mRetryScheduled = false;
+  private int mRetryCount = 0;
+  private static final int MAX_RETRY = 5;
 
   private void scheduleRetry() {
     if (mRetryScheduled || !mActive || mAudioSessionId <= 0) return;
+    if (mRetryCount >= MAX_RETRY) {
+      sendRhythmLog("attach retry exhausted, stop");
+      return;
+    }
     mRetryScheduled = true;
-    sendRhythmLog("schedule retry attach session=" + mAudioSessionId);
+    mRetryCount++;
+    sendRhythmLog("schedule retry attach session=" + mAudioSessionId + " (" + mRetryCount + "/" + MAX_RETRY + ")");
     mRetryHandler.postDelayed(() -> {
       mRetryScheduled = false;
       if (!mActive || mAttached) return;
