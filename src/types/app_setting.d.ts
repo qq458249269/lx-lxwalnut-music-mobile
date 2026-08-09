@@ -280,6 +280,11 @@ declare global {
       'playDetail.visualizer.debugLog': boolean
 
       /**
+       * 播放详情页-Web 播放器(Web Audio 播放+频谱)
+       */
+      'playDetail.visualizer.webPlayer': boolean
+
+      /**
        * 是否启用桌面歌词
        */
       'desktopLyric.enable': boolean
