@@ -15,9 +15,9 @@ const abis = ['arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86', 'universal']
 // 最后兜底用 GitHub Releases API：直接读最新 release（tag_name→version，body→desc），
 // 不依赖 CDN 分支/缓存。
 const address = [
-  [`https://cdn.jsdelivr.net/gh/${repo}/${name}@main/publish/version.json`, 'direct'],
-  [`https://fastly.jsdelivr.net/gh/${repo}/${name}@main/publish/version.json`, 'direct'],
-  [`https://gcore.jsdelivr.net/gh/${repo}/${name}@main/publish/version.json`, 'direct'],
+  [`https://cdn.jsdelivr.net/gh/${repo}@main/publish/version.json`, 'direct'],
+  [`https://fastly.jsdelivr.net/gh/${repo}@main/publish/version.json`, 'direct'],
+  [`https://gcore.jsdelivr.net/gh/${repo}@main/publish/version.json`, 'direct'],
   [`https://api.github.com/repos/${repo}/${name}/releases/latest`, 'release'],
   [`https://raw.githubusercontent.com/${repo}/${name}/main/publish/version.json`, 'direct'],
 ]
