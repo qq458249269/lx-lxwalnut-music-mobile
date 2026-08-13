@@ -67,6 +67,25 @@ jobs:
           echo "release_name=${RELEASE_NAME}" >> "$GITHUB_OUTPUT"
           echo "release_prerelease=${RELEASE_PRERELEASE}" >> "$GITHUB_OUTPUT"
 
+      # 先改版本号再构建发布：版本确定后立即把 publish/version.json 提交推送回 main。
+      # workflow 触发带 paths-ignore: publish/version.json，该提交不会再次触发本 action。
+      - name: Bump publish/version.json before build
+        env:
+          NEXT_VERSION: ${{ steps.resolve.outputs.next_version }}
+        shell: bash
+        run: |
+          node -e "const {compareVer}=require('./publish/utils/bump-version.cjs');const fs=require('fs');const f='./publish/version.json';const v=JSON.parse(fs.readFileSync(f,'utf8'));if(compareVer('${NEXT_VERSION}',v.version||'')>0){const md=fs.readFileSync('./publish/changeLog.md','utf8').split('---')[0].trim().split('\n').slice(1).join('\n').trim();v.history.unshift({version:v.version,desc:v.desc});v.version='${NEXT_VERSION}';v.desc=md;fs.writeFileSync(f,JSON.stringify(v,null,2)+'\n')}else{console.log('version.json already >= ${NEXT_VERSION}, skip')}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add publish/version.json
+          if git diff --cached --quiet; then
+            echo "No version change, skip commit."
+          else
+            git commit -m "chore: bump version.json to ${NEXT_VERSION}"
+            git push origin HEAD:main
+            echo "version.json updated to ${NEXT_VERSION}"
+          fi
+
       - name: Build Packages
         env:
           DISABLE_SVG: 1
@@ -141,32 +160,3 @@ jobs:
             artifacts/lx-lxwalnut-music-mobile-v${{ needs.Android.outputs.package_version }}-arm64-v8a.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  Sync:
-    name: Sync
-    runs-on: ubuntu-latest
-    needs:
-      - Android
-      - Release
-    permissions:
-      contents: write
-    steps:
-      - name: Check out git repository
-        uses: actions/checkout@v5
-
-      - name: Sync version.json to released version
-        env:
-          NEW_VERSION: ${{ needs.Android.outputs.next_version }}
-        shell: bash
-        run: |
-          node -e "const {compareVer}=require('./publish/utils/bump-version.cjs');const fs=require('fs');const f='./publish/version.json';const v=JSON.parse(fs.readFileSync(f,'utf8'));if(compareVer('${NEW_VERSION}',v.version||'')>0){const md=fs.readFileSync('./publish/changeLog.md','utf8').split('---')[0].trim().split('\n').slice(1).join('\n').trim();v.history.unshift({version:v.version,desc:v.desc});v.version='${NEW_VERSION}';v.desc=md;fs.writeFileSync(f,JSON.stringify(v,null,2)+'\n')}else{console.log('version.json already >= ${NEW_VERSION}, skip')}"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add publish/version.json
-          if git diff --cached --quiet; then
-            echo "No version change, skip commit."
-          else
-            git commit -m "chore: bump version.json to ${NEW_VERSION}"
-            git push origin HEAD:main
-            echo "version.json updated to ${NEW_VERSION}"
-          fi
