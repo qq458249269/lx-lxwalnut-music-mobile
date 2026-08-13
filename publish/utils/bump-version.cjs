@@ -48,15 +48,14 @@ const versionCodeOf = (ver) => {
 }
 
 /**
- * 计算下一次发布版本号。
- * 恒为四段 YY.MM.DD.N，日期 + 小号双递增：「同日或新日期」末位 N 递增，新日期从 .1 起。
- * @param {string} current 当前 package.json version
+ * 计算下一次发布版本号（纯日期生成，不依赖任何项目版本文件）。
+ * 恒为四段 YY.MM.DD.N：以当天日期为基，同日已有 tag 则末位 .N 递增，新日期从 .1 起。
  * @param {Array<{tagName:string,isDraft?:boolean}>} tags 已存在的 Release tag（GhAPI 输出）
  * @param {string} today 日期基版本，默认当天
  * @returns {string} 下次版本：新日期首发 .1；同日 .N 递增
  */
-const computeNextVersion = (current, tags = [], today = todayVersion()) => {
-  const base = datePart(current) === today ? today : today
+const computeNextVersion = (tags = [], today = todayVersion()) => {
+  const base = today
   let maxN = 0
   for (const t of tags) {
     const tv = String(t.tagName || t).replace(/^v/, '')
@@ -85,18 +84,21 @@ const selfTest = () => {
   assert(versionCodeOf('26.08.09') === 26080900, 'versionCode day roll')
   assert(versionCodeOf('27.01.01') === 27010100, 'versionCode year roll')
   // 未发布过的新日期：从 .1 起
-  assert(computeNextVersion('26.08.07', [], t) === '26.08.08.1', 'day rollover -> .1')
+  assert(computeNextVersion([], t) === '26.08.08.1', 'day rollover -> .1')
   // 同一天首个（无小号 tag 时）：.1
-  assert(computeNextVersion('26.08.08', [], t) === '26.08.08.1', 'first of day -> .1')
+  assert(computeNextVersion([], t) === '26.08.08.1', 'first of day -> .1')
   // 同日已有裸版：-> .1
-  assert(computeNextVersion('26.08.08', [{ tagName: 'v26.08.08' }], t) === '26.08.08.1', 'bare base -> .1')
+  assert(computeNextVersion([{ tagName: 'v26.08.08' }], t) === '26.08.08.1', 'bare base -> .1')
   // 同日已有 .1：-> .2
-  assert(computeNextVersion('26.08.08.1', [{ tagName: 'v26.08.08.1', isDraft: false }], t) === '26.08.08.2', 'increment')
+  assert(computeNextVersion([{ tagName: 'v26.08.08.1', isDraft: false }], t) === '26.08.08.2', 'increment')
   // draft 忽略：只看非 draft，maxN=1 -> .2
-  assert(computeNextVersion('26.08.08.2', [{ tagName: 'v26.08.08.1' }, { tagName: 'v26.08.08.2', isDraft: true }], t) === '26.08.08.2', 'draft ignored')
+  assert(
+    computeNextVersion([{ tagName: 'v26.08.08.1' }, { tagName: 'v26.08.08.2', isDraft: true }], t) === '26.08.08.2',
+    'draft ignored'
+  )
   // pre-release 计入：maxN=7 -> .8
   assert(
-    computeNextVersion('26.08.08.7', [{ tagName: 'v26.08.08.7', isPrerelease: true }], t) === '26.08.08.8',
+    computeNextVersion([{ tagName: 'v26.08.08.7', isPrerelease: true }], t) === '26.08.08.8',
     'prerelease counts'
   )
   console.log('bump-version self-test OK')

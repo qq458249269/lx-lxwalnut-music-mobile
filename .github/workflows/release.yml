@@ -37,7 +37,7 @@ jobs:
           restore-keys: |
             metro-${{ runner.os }}-
 
-      # 先算本次发布版本（四段 YY.MM.DD[.N]，同日递增末位），再注入 package.json（version+versionCode）。
+      # 版本号纯日期生成（YY.MM.DD.N，同日递增末位，新日期从 .1 起），不依赖项目内版本文件。
       # 与本地 npm run publish 共用 bump-version 模块，单一来源。
       - name: Compute & inject version
         id: resolve
@@ -45,9 +45,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
-          BASE_VERSION=$(node -p -e 'require("./package.json").version')
           gh release list --repo "${GITHUB_REPOSITORY}" --limit 100 --json tagName,isDraft,isPrerelease > /tmp/tags.json || echo '[]' > /tmp/tags.json
-          NEXT_VERSION=$(BASE_VERSION="${BASE_VERSION}" TAGS_JSON="/tmp/tags.json" node -p -e 'const {computeNextVersion,todayVersion}=require("./publish/utils/bump-version.cjs");let tags=[];try{tags=JSON.parse(require("fs").readFileSync(process.env.TAGS_JSON,"utf8"))}catch(e){};computeNextVersion(process.env.BASE_VERSION,tags,todayVersion())')
+          NEXT_VERSION=$(TAGS_JSON="/tmp/tags.json" node -p -e 'const {computeNextVersion,todayVersion}=require("./publish/utils/bump-version.cjs");let tags=[];try{tags=JSON.parse(require("fs").readFileSync(process.env.TAGS_JSON,"utf8"))}catch(e){};computeNextVersion(tags,todayVersion())')
           RELEASE_TAG="v${NEXT_VERSION}"
 
           if gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
