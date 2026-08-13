@@ -15,11 +15,13 @@ const abis = ['arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86', 'universal']
 // 最后兜底用 GitHub Releases API：直接读最新 release（tag_name→version，body→desc），
 // 不依赖 CDN 分支/缓存。
 const address = [
+  [`https://cdn.jsmirror.com/gh/${repo}@main/publish/version.json`, 'direct'],
   [`https://cdn.jsdelivr.net/gh/${repo}@main/publish/version.json`, 'direct'],
   [`https://fastly.jsdelivr.net/gh/${repo}@main/publish/version.json`, 'direct'],
   [`https://gcore.jsdelivr.net/gh/${repo}@main/publish/version.json`, 'direct'],
-  [`https://api.github.com/repos/${repo}/${name}/releases/latest`, 'release'],
-  [`https://raw.githubusercontent.com/${repo}/${name}/main/publish/version.json`, 'direct'],
+  [`https://raw.staticdn.net/gh/${repo}@main/publish/version.json`, 'direct'],
+  [`https://api.github.com/repos/${repo}/releases/latest`, 'release'],
+  [`https://raw.githubusercontent.com/${repo}/main/publish/version.json`, 'direct'],
 ]
 
 const request = async (url, retryNum = 0) => {
@@ -108,7 +110,7 @@ let apkSavePath
 
 export const downloadNewVersion = async (version, onDownload = noop) => {
   const abi = await getTargetAbi()
-  const url = `https://github.com/${repo}/${name}/releases/download/v${version}/${name}-v${version}-${abi}.apk`
+  const url = `https://github.com/${repo}/releases/download/v${version}/${name}-v${version}-${abi}.apk`
   let savePath = temporaryDirectoryPath + '/lx-netease-music-mobile.apk'
 
   if (downloadJobId) stopDownload(downloadJobId)

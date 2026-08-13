@@ -51,9 +51,7 @@ export const checkUpdate = async (silent = false) => {
   } else {
     versionInfo.status = 'idle'
     versionInfo.isUnknown = false
-    if (compareVer(versionInfo.version, versionInfo.newVersion.version) != -1) {
-      versionInfo.isLatest = true
-    }
+    versionInfo.isLatest = compareVer(versionInfo.version, versionInfo.newVersion.version) != -1
   }
 
   versionActions.setVersionInfo(versionInfo)
