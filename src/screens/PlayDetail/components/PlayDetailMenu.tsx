@@ -87,7 +87,7 @@ export default forwardRef<PlayDetailMenuType, PlayDetailMenuProps>((props, ref) 
     }
 
     return menuItems;
-  }, [t, isLiked, selectInfoRef.current.musicInfo, menuSetting]);
+  }, [t, isLiked, currentSongId, menuSetting]);
 
   const handleMenuPress = ({ action }: (typeof menus)[number]) => {
     const selectInfo = selectInfoRef.current;

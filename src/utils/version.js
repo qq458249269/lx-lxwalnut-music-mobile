@@ -63,9 +63,11 @@ const getNpmPkgInfo = async (url) => {
 }
 
 // GitHub Releases API：直接读最新 release，tag_name→version，body→desc。
+// 仅检查正式发布版本，跳过 prerelease 和 draft。
 const getReleaseInfo = async (url) => {
   return request(url).then((json) => {
     const parsed = typeof json == 'string' ? JSON.parse(json) : json
+    if (parsed.prerelease || parsed.draft) throw new Error('failed')
     const tag = parsed.tag_name
     const body = parsed.body
     if (tag == null) throw new Error('failed')
