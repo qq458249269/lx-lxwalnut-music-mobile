@@ -141,6 +141,10 @@ jobs:
       - name: Generate release body
         run: |
           awk 'BEGIN{RS="---"}{if(NR==1)print $0}' ./publish/changeLog.md > RELEASE_NOTES.md
+          echo -e '\n### 最近 10 次提交' >> RELEASE_NOTES.md
+          echo '```' >> RELEASE_NOTES.md
+          git log --oneline -10 >> RELEASE_NOTES.md
+          echo '```' >> RELEASE_NOTES.md
           echo -e '\n### File MD5\n```' >> RELEASE_NOTES.md
           cd artifacts
           md5sum *.apk >> ../RELEASE_NOTES.md
