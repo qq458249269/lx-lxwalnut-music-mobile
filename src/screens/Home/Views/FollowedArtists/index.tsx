@@ -7,15 +7,22 @@ import { setWyFollowedArtists } from '@/store/user/action'
 import { createStyle, toast } from '@/utils/tools'
 import { useTheme } from '@/store/theme/hook'
 import { useHorizontalMode } from '@/utils/hooks'
+import { useSettingValue } from '@/store/setting/hook'
 
 export default memo(() => {
   const followedArtists = useWyFollowedArtists()
   const [loading, setLoading] = useState(false)
   const theme = useTheme()
   const isHorizontal = useHorizontalMode()
+  const cookie = useSettingValue('common.wy_cookie')
   const onRefresh = useCallback(() => {
+    if (!cookie) {
+      setLoading(false)
+      setWyFollowedArtists([])
+      return
+    }
     setLoading(true)
-    wyApi.getAllSublist()
+    wyApi.getAllSublist(cookie)
       .then(artists => {
         setWyFollowedArtists(artists)
       })
@@ -25,7 +32,7 @@ export default memo(() => {
       .finally(() => {
         setLoading(false)
       })
-  }, [])
+  }, [cookie])
 
   return (
     <View style={{ flex: 1 }}>

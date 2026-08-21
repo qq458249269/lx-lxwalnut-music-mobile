@@ -24,7 +24,7 @@ export default memo(() => {
       return
     }
     setLoading(true)
-    wyApi.getAllSubAlbumList()
+    wyApi.getAllSubAlbumList(cookie)
       .then(albums => {
         setWySubscribedAlbums(albums);
       })

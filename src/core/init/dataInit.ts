@@ -59,13 +59,13 @@ export default async (appSetting: LX.AppSetting) => {
           setWyLikedSongs(ids)
           bootLog('Wy like list inited.')
         })
-        wyUserApi.getAllSublist().then(artists => {
+        wyUserApi.getAllSublist(wy_cookie).then(artists => {
           setWyFollowedArtists(artists)
           bootLog('Wy followed artists inited.')
         }).catch(err => {
           bootLog(`Wy followed artists init failed: ${err.message}`)
         })
-        wyUserApi.getAllSubAlbumList().then(albums => {
+        wyUserApi.getAllSubAlbumList(wy_cookie).then(albums => {
           setWySubscribedAlbums(albums)
           bootLog('Wy liked albums inited.')
         }).catch(err => {

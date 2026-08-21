@@ -2,7 +2,7 @@ import { useMemo, useRef, useImperativeHandle, forwardRef, useState } from 'reac
 import { useI18n } from '@/lang'
 import Menu, { type MenuType, type Position, type Menus } from '@/components/common/Menu'
 import settingState from '@/store/setting/state'
-import userState from '@/store/user/state'
+import { useIsWyLiked } from '@/store/user/hook'
 import {useSettingValue} from "@/store/setting/hook.ts";
 import { isOneDriveMusicInfo } from '@/core/oneDrive/utils'
 
@@ -36,7 +36,8 @@ export default forwardRef<PlayDetailMenuType, PlayDetailMenuProps>((props, ref) 
   const [visible, setVisible] = useState(false);
   const menuRef = useRef<MenuType>(null);
   const selectInfoRef = useRef<SelectInfo>(initSelectInfo as SelectInfo);
-  const [isLiked, setIsLiked] = useState(false);
+  const [currentSongId, setCurrentSongId] = useState<string | number | null>(null);
+  const isLiked = useIsWyLiked(currentSongId ?? '');
 
   const menuSetting = {
     share: useSettingValue('menu.share'),
@@ -48,7 +49,9 @@ export default forwardRef<PlayDetailMenuType, PlayDetailMenuProps>((props, ref) 
     show(selectInfo, position) {
       selectInfoRef.current = selectInfo;
       if (selectInfo.musicInfo.source === 'wy') {
-        setIsLiked(userState.wy_liked_song_ids.has(String(selectInfo.musicInfo.meta.songId)));
+        setCurrentSongId(selectInfo.musicInfo.meta.songId);
+      } else {
+        setCurrentSongId(null);
       }
       if (visible) {
         menuRef.current?.show(position);

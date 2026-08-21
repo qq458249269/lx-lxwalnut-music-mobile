@@ -322,12 +322,18 @@ export default {
    * @param {number} limit
    * @param {number} offset
    */
-  async getSublist(limit = 100, offset = 0, retryNum = 0) {
+  async getSublist(limit = 100, offset = 0, cookie, retryNum = 0) {
     const maxRetries = 3;
     const retryDelay = 200;
     try {
       const requestObj = httpFetch('https://music.163.com/weapi/artist/sublist', {
         method: 'post',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36 Edg/108.0.1462.54',
+          origin: 'https://music.163.com',
+          Referer: 'https://music.163.com',
+          cookie,
+        },
         form: weapi({
           limit,
           offset,
@@ -340,7 +346,7 @@ export default {
     } catch (error) {
       if (retryNum < maxRetries) {
         await new Promise(resolve => setTimeout(resolve, retryDelay));
-        return this.getSublist(limit, offset, retryNum + 1);
+        return this.getSublist(limit, offset, cookie, retryNum + 1);
       } else {
         console.error('获取关注歌手列表失败 (重试次数已达上限)', error);
         throw error;
@@ -348,12 +354,18 @@ export default {
     }
   },
 
-  async getSubAlbumList(limit = 100, offset = 0, retryNum = 0) {
+  async getSubAlbumList(limit = 100, offset = 0, cookie, retryNum = 0) {
     const maxRetries = 3;
     const retryDelay = 200;
     try {
       const requestObj = httpFetch('https://music.163.com/weapi/album/sublist', {
         method: 'post',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36 Edg/108.0.1462.54',
+          origin: 'https://music.163.com',
+          Referer: 'https://music.163.com',
+          cookie,
+        },
         form: weapi({
           limit,
           offset,
@@ -366,7 +378,7 @@ export default {
     } catch (error) {
       if (retryNum < maxRetries) {
         await new Promise(resolve => setTimeout(resolve, retryDelay));
-        return this.getSubAlbumList(limit, offset, retryNum + 1);
+        return this.getSubAlbumList(limit, offset, cookie, retryNum + 1);
       } else {
         console.error('获取收藏专辑列表失败 (重试次数已达上限)', error);
         throw error;
@@ -377,12 +389,12 @@ export default {
   /**
    * 获取所有关注的歌手（自动分页）
    */
-  async getAllSublist() {
+  async getAllSublist(cookie) {
     let allArtists = [];
     let offset = 0;
     const limit = 100;
     while (true) {
-      const artists = await this.getSublist(limit, offset);
+      const artists = await this.getSublist(limit, offset, cookie);
       allArtists = allArtists.concat(artists);
       if (artists.length < limit) break;
       offset += limit;
@@ -393,12 +405,12 @@ export default {
   /**
    * 获取所有收藏的专辑（自动分页）
    */
-  async getAllSubAlbumList() {
+  async getAllSubAlbumList(cookie) {
     let allAlbums = [];
     let offset = 0;
     const limit = 100;
     while (true) {
-      const albums = await this.getSubAlbumList(limit, offset);
+      const albums = await this.getSubAlbumList(limit, offset, cookie);
       allAlbums = allAlbums.concat(albums);
       if (albums.length < limit) break;
       offset += limit;
