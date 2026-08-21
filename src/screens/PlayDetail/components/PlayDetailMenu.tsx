@@ -1,8 +1,8 @@
-import { useMemo, useRef, useImperativeHandle, forwardRef, useState } from 'react'
+import { useMemo, useRef, useImperativeHandle, forwardRef, useState, useEffect } from 'react'
 import { useI18n } from '@/lang'
 import Menu, { type MenuType, type Position, type Menus } from '@/components/common/Menu'
 import settingState from '@/store/setting/state'
-import { useIsWyLiked } from '@/store/user/hook'
+import userState from '@/store/user/state'
 import {useSettingValue} from "@/store/setting/hook.ts";
 import { isOneDriveMusicInfo } from '@/core/oneDrive/utils'
 
@@ -36,8 +36,18 @@ export default forwardRef<PlayDetailMenuType, PlayDetailMenuProps>((props, ref) 
   const [visible, setVisible] = useState(false);
   const menuRef = useRef<MenuType>(null);
   const selectInfoRef = useRef<SelectInfo>(initSelectInfo as SelectInfo);
-  const [currentSongId, setCurrentSongId] = useState<string | number | null>(null);
-  const isLiked = useIsWyLiked(currentSongId ?? '');
+  const [renderKey, setRenderKey] = useState(0);
+
+  // 监听收藏列表变化，强制重渲染以更新 menus
+  useEffect(() => {
+    const handleLikedListChanged = () => {
+      setRenderKey(n => n + 1)
+    }
+    global.state_event.on('wyLikedListChanged', handleLikedListChanged)
+    return () => {
+      global.state_event.off('wyLikedListChanged', handleLikedListChanged)
+    }
+  }, [])
 
   const menuSetting = {
     share: useSettingValue('menu.share'),
@@ -48,11 +58,6 @@ export default forwardRef<PlayDetailMenuType, PlayDetailMenuProps>((props, ref) 
   useImperativeHandle(ref, () => ({
     show(selectInfo, position) {
       selectInfoRef.current = selectInfo;
-      if (selectInfo.musicInfo.source === 'wy') {
-        setCurrentSongId(selectInfo.musicInfo.meta.songId);
-      } else {
-        setCurrentSongId(null);
-      }
       if (visible) {
         menuRef.current?.show(position);
       } else {
@@ -72,6 +77,7 @@ export default forwardRef<PlayDetailMenuType, PlayDetailMenuProps>((props, ref) 
     if (menuSetting.share) menuItems.push({ action: 'copyName', label: t('copy_name') });
 
     if (musicInfo?.source === 'wy') {
+      const isLiked = userState.wy_liked_song_ids.has(String((musicInfo as any).meta?.songId ?? ''))
       menuItems.push({ action: 'like', label: isLiked ? '❤️ 取消喜欢' : '🤍 喜欢',})
       menuItems.push({ action: 'artistDetail', label: t('artist_detail') });
       menuItems.push({ action: 'albumDetail', label: t('album_detail') });
@@ -87,7 +93,7 @@ export default forwardRef<PlayDetailMenuType, PlayDetailMenuProps>((props, ref) 
     }
 
     return menuItems;
-  }, [t, isLiked, currentSongId, menuSetting]);
+  }, [t, visible, menuSetting, renderKey]);
 
   const handleMenuPress = ({ action }: (typeof menus)[number]) => {
     const selectInfo = selectInfoRef.current;

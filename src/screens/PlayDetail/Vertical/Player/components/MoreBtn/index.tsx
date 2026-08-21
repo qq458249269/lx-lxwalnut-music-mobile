@@ -4,7 +4,7 @@ import PlayModeBtn from './PlayModeBtn'
 import MusicAddBtn from './MusicAddBtn'
 import DesktopLyricBtn from './DesktopLyricBtn'
 import CommentBtn from './CommentBtn'
-import {memo, useRef, useCallback, useEffect} from 'react'
+import {memo, useRef, useCallback} from 'react'
 import Btn from './Btn'
 import { type Position } from '@/screens/Home/Views/Mylist/MusicList/ListMenu'
 import PlayDetailMenu, { type PlayDetailMenuType, type SelectInfo } from '@/screens/PlayDetail/components/PlayDetailMenu'
@@ -28,21 +28,6 @@ export default memo(({ componentId }: { componentId: string }) => {
   const similarSongsModalRef = useRef<SimilarSongsModalType>(null);
   const playMusicInfo = usePlayMusicInfo();
   const isOneDrive = isOneDriveMusicInfo(playMusicInfo.musicInfo);
-
-  // 监听歌曲变化，以便在菜单打开时能重新渲染以获取最新的“喜欢”状态
-  useEffect(() => {
-    const handleMusicChange = () => {
-      // 这是一个空的回调，目的只是为了触发组件的重新渲染
-      // 以便 useMemo 能够重新计算菜单项
-    };
-    global.state_event.on('playerMusicInfoChanged', handleMusicChange);
-    global.state_event.on('wyLikedListChanged', handleMusicChange);
-
-    return () => {
-      global.state_event.off('playerMusicInfoChanged', handleMusicChange);
-      global.state_event.off('wyLikedListChanged', handleMusicChange);
-    };
-  }, []);
 
   const handleShowMenu = useCallback(() => {
     const musicInfo = playerState.playMusicInfo.musicInfo;
