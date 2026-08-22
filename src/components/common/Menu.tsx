@@ -61,7 +61,7 @@ const styles = createStyle({
 
 interface Props<M extends Menus = Menus> {
   menus: Readonly<M>
-  onPress?: (menu: M[number]) => void
+  onPress?: (menu: M[number]) => void | Promise<void>
   buttonPosition: Position
   menuSize: MenuSize
   onHide: () => void
@@ -127,9 +127,12 @@ const Menu = ({
     return frameStyle
   }, [menus.length, menuItemStyle, buttonPosition, windowSize])
 
-  const menuPress = (menu: Menus[number]) => {
+  const menuPress = async (menu: Menus[number]) => {
     // if (menu.disabled) return
-    onPress(menu)
+    const result = onPress(menu)
+    if (result instanceof Promise) {
+      await result
+    }
     onHide()
   }
 
@@ -210,7 +213,7 @@ const Menu = ({
 
 export interface MenuProps<M extends Menus = Menus> {
   menus: M
-  onPress: (menu: M[number]) => void
+  onPress: (menu: M[number]) => void | Promise<void>
   onHide?: () => void
   width?: number
   height?: number

@@ -97,9 +97,7 @@ export default memo(({ componentId }: { componentId: string }) => {
   }, []);
 
   const onLike = (info: SelectInfo) => {
-    if (info.musicInfo.source === 'wy') {
-      handleLikeMusic(info.musicInfo as LX.Music.MusicInfoOnline);
-    }
+    return handleLikeMusic(info.musicInfo as LX.Music.MusicInfoOnline);
   };
 
   return (
