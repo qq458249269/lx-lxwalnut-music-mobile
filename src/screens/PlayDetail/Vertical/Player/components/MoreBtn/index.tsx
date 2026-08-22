@@ -4,6 +4,7 @@ import PlayModeBtn from './PlayModeBtn'
 import MusicAddBtn from './MusicAddBtn'
 import DesktopLyricBtn from './DesktopLyricBtn'
 import CommentBtn from './CommentBtn'
+import LoveBtn from './LoveBtn'
 import {memo, useRef, useCallback} from 'react'
 import Btn from './Btn'
 import { type Position } from '@/screens/Home/Views/Mylist/MusicList/ListMenu'
@@ -104,6 +105,7 @@ export default memo(({ componentId }: { componentId: string }) => {
     <>
       <View style={styles.container}>
         <DesktopLyricBtn />
+        <LoveBtn />
         <MusicAddBtn />
         <PlayModeBtn />
         {isOneDrive ? null : <CommentBtn />}
