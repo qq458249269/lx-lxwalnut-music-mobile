@@ -72,16 +72,23 @@ export const handleLikeMusic = async (musicInfo: LX.Music.MusicInfoOnline) => {
   const isLiked = userState.wy_liked_song_ids.has(String(songId))
   const like = !isLiked
 
+  // 乐观更新：先立即更新本地状态，让用户看到即时反馈
+  if (like) {
+    addWyLikedSong(songId);
+  } else {
+    removeWyLikedSong(songId);
+  }
+
   try {
     await wyApi.likeSong(songId, like);
-    if (like) {
-      toast('喜欢成功');
-      addWyLikedSong(songId);
-    } else {
-      toast('取消喜欢成功');
-      removeWyLikedSong(songId);
-    }
+    toast(like ? '喜欢成功' : '取消喜欢成功');
   } catch (error: any) {
+    // API 失败时回滚本地状态
+    if (like) {
+      removeWyLikedSong(songId);
+    } else {
+      addWyLikedSong(songId);
+    }
     toast(`操作失败: ${error.message}`);
   }
 }
