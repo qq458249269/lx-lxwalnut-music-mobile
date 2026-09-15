@@ -3,7 +3,7 @@ const defaultSetting: LX.AppSetting = {
   'version.autoCheckUpdate': true,
   'common.isAutoTheme': false,
   'common.langId': null,
-  'common.apiSource': '',
+  'common.apiSource': 'builtin',
   'common.sourceNameType': 'alias',
   'common.shareType': 'system',
   'common.isAgreePact': true,
