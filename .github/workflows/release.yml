@@ -56,8 +56,8 @@ jobs:
           else
             RELEASE_NAME="${RELEASE_TAG}"
           fi
-          # 统一发 Pre-release
-          RELEASE_PRERELEASE="true"
+          # 统一发 Release（非 Pre-release）
+          RELEASE_PRERELEASE="false"
 
           node -e "const fs=require('fs');const f='./package.json';const j=JSON.parse(fs.readFileSync(f,'utf8'));const {versionCodeOf}=require('./publish/utils/bump-version.cjs');j.version='${NEXT_VERSION}';j.versionCode=versionCodeOf('${NEXT_VERSION}');fs.writeFileSync(f,JSON.stringify(j,null,2)+'\n')"
 
