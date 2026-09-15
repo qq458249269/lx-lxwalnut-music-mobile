@@ -1,4 +1,4 @@
-import { httpFetch } from '../../request'
+import { httpFetch } from '../request'
 
 // ponytail: 酷狗播放URL，参考 lx-music-source
 export default {

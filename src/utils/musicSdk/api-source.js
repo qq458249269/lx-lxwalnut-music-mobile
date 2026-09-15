@@ -1,6 +1,5 @@
-import settingState from '../store/setting/state'
+import settingState from '../../store/setting/state'
 import sources from './api-source-info'
-import globalEnv from '../core/global'
 import api_builtin_kw from './api-builtin-kw'
 import api_builtin_kg from './api-builtin-kg'
 import api_builtin_tx from './api-builtin-tx'
@@ -35,7 +34,7 @@ const getAPI = (source) => apiList[`${getSourceId()}_api_${source}`]
  */
 export const apis = (source) => {
   if (/^user_api/.test(settingState.setting['common.apiSource'])) {
-    return globalEnv.lx.apis[source]
+    return global.lx.apis[source]
   }
 
   const api = getAPI(source)

@@ -1,4 +1,4 @@
-import { httpFetch } from '../../request'
+import { httpFetch } from '../request'
 
 // ponytail: 酷我播放URL，参考 lx-music-source。token 机制复杂度较高，升级建议对接 lx-music-source
 let kwToken = ''
