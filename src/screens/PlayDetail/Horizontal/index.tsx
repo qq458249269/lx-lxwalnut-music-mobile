@@ -8,7 +8,6 @@ import { setComponentId } from '@/core/common'
 import { COMPONENT_IDS } from '@/config/constant'
 import PageContent from '@/components/PageContent'
 import commonState, { type InitState as CommonState } from '@/store/common/state'
-import { COMPONENT_IDS } from '@/config/constant'
 
 import Pic from './Pic'
 // import ControlBtn from './ControlBtn'
