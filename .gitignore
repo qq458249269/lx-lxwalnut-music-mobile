@@ -74,3 +74,6 @@ lx-netease-music-mobile.zip
 
 # Metro transform cache
 .metro-cache/
+
+# npm git-dependency cache dirs
+/react-native-track-player-*/
