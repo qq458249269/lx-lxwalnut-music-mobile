@@ -142,17 +142,18 @@ export default {
     const retryDelay = 1000
 
     const cookie = settingState.setting['common.wy_cookie']
-    if (!cookie) return Promise.reject(new Error('未设置Cookie'))
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36 Edg/108.0.1462.54',
+      origin: 'https://music.163.com',
+      Referer: 'https://music.163.com',
+    }
+    // cookie 失效/为空时匿名请求，核心接口仍可返回相似歌曲
+    if (cookie) headers.cookie = cookie
 
     try {
       const requestObj = httpFetch('https://music.163.com/weapi/v1/discovery/simiSong', {
         method: 'post',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36 Edg/108.0.1462.54',
-          origin: 'https://music.163.com',
-          Referer: 'https://music.163.com',
-          cookie,
-        },
+        headers,
         form: weapi({
           songid: songId,
           limit,
@@ -174,6 +175,17 @@ export default {
         throw error
       }
     }
+  },
+
+  /**
+   * cookie 失效降级：用相似歌曲生成心动列表（无登录可用）
+   */
+  async getSimilarList(songId) {
+    const songs = await this.getSimilarSongs(songId)
+    const ids = songs.map(s => s.id).filter(id => id)
+    if (!ids.length) return { list: [], source: 'wy', degraded: true }
+    const { list } = await musicDetailApi.getList(ids)
+    return { list, source: 'wy', degraded: true }
   },
 
   async getHeartbeatModeList(cookie, playlistId, songId, retryNum = 0) {
@@ -210,6 +222,12 @@ export default {
       return await musicDetailApi.getList(ids)
     } catch (error) {
       console.log(`获取心动模式列表失败，正在进行第 ${retryNum + 1} 次重试...`, error.message)
+      // cookie 失效/歌单不可用时强制降级为相似歌曲模式
+      try {
+        return await this.getSimilarList(songId)
+      } catch (e2) {
+        console.log('心动模式降级失败(相似歌曲):', e2.message)
+      }
       return this.getHeartbeatModeList(cookie, playlistId, songId, retryNum + 1)
     }
   },

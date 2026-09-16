@@ -9,6 +9,7 @@ import userState from '@/store/user/state'
 import playerState from '@/store/player/state'
 import wyApi from '@/utils/musicSdk/wy'
 import { playOnlineList } from '@/core/list'
+import { getList } from '@/core/player/playInfo'
 import settingState from '@/store/setting/state'
 
 export default memo(() => {
@@ -24,10 +25,10 @@ export default memo(() => {
       : null
     const isWy = musicInfo?.source === 'wy'
     const songId = (musicInfo as any)?.meta?.songId || (musicInfo as any)?.songmid || musicInfo?.id
-    const isLiked = userState.wy_liked_song_ids.has(String(songId))
     const playlistId = userState.wy_subscribed_playlists[0]?.id
 
-    if (isWy && isLiked && playlistId) {
+    if (musicInfo) {
+      // 全平台可开启：cookie 失效也可强制（wy 用推荐接口，其余以当前列表环序续播）
       list.splice(list.length - 1, 0, MUSIC_TOGGLE_MODE.heartbeat)
     }
 
@@ -40,8 +41,31 @@ export default memo(() => {
       toast(t('play_heartbeat') || '心动模式已开启')
       try {
         const cookie = settingState.setting['common.wy_cookie']
-        const res = await wyApi.dailyRec.getHeartbeatModeList(cookie, playlistId, songId)
+        let res: { list: any[]; degraded?: boolean }
+        if (musicInfo?.source === 'wy') {
+          res = await wyApi.dailyRec.getHeartbeatModeList(cookie, playlistId, songId)
+        } else {
+          // 非网易平台：以当前播放列表环序续播，强制开启心跳序列
+          const curListId = playerState.playMusicInfo.listId
+          const curIdx = playerState.playInfo.playIndex
+          let curList: any[] = []
+          try {
+            curList = (await getList(curListId)) as any[]
+          } catch { /* 列表获取失败则跳过 */ }
+          const fallback: any[] = []
+          if (curIdx >= 0 && curList.length) {
+            for (let i = 1; i < curList.length && fallback.length < 80; i++) {
+              const m = curList[(curIdx + i) % curList.length]
+              if (m && !fallback.some(x => x.id === m.id)) fallback.push(m)
+            }
+            res = { list: fallback, degraded: true }
+          } else {
+            res = { list: [] }
+          }
+        }
         if (res?.list?.length) {
+          if (res.degraded && musicInfo?.source !== 'wy') toast('非网易平台，已用当前列表续播模式')
+          else if (res.degraded) toast('Cookie 失效，已降级为相似歌曲模式')
           const mInfo = playMusicInfo 
             ? ('progress' in playMusicInfo ? playMusicInfo.metadata.musicInfo : playMusicInfo) 
             : musicInfo
