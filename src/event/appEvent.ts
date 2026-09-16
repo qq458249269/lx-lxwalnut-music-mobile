@@ -344,6 +344,13 @@ export class AppEvent extends Event {
   'yt-cookie-set'(cookie: string) {
     this.emit('yt-cookie-set', cookie)
   }
+  // [tx fork] 事件：设置页 QQ 网页登录
+  showTxWebLogin() {
+    this.emit('showTxWebLogin')
+  }
+  'tx-cookie-set'(cookie: string) {
+    this.emit('tx-cookie-set', cookie)
+  }
 }
 
 type EventMethods = Omit<EventType, keyof Event>

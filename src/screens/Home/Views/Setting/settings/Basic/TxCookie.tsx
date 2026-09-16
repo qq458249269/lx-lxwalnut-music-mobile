@@ -1,10 +1,11 @@
-import { memo } from 'react';
+import { memo, useEffect } from 'react';
 import { View } from 'react-native';
 import InputItem, { type InputItemProps } from '../../components/InputItem';
 import { useI18n } from '@/lang';
 import { useSettingValue } from '@/store/setting/hook';
 import { updateSetting } from '@/core/common';
 import { createStyle } from '@/utils/tools';
+import Button from '../../components/Button';
 import CookieManager from '@react-native-cookies/cookies';
 
 const syncCookieToNative = async (cookie: string) => {
@@ -47,6 +48,21 @@ export default memo(() => {
     setCookie(text);
   };
 
+  const handleShowLoginModal = () => {
+    global.app_event.emit('showTxWebLogin');
+  };
+
+  useEffect(() => {
+    const handleCookieSet = (cookie: string) => {
+      setCookie(cookie);
+    };
+
+    global.app_event.on('tx-cookie-set', handleCookieSet);
+    return () => {
+      global.app_event.off('tx-cookie-set', handleCookieSet);
+    };
+  }, []);
+
   return (
     <View style={styles.content}>
       <InputItem
@@ -55,6 +71,9 @@ export default memo(() => {
         onChanged={handleChanged}
         placeholder={t('setting_basic_tx_cookie_placeholder')}
       />
+      <View style={styles.btnContainer}>
+        <Button onPress={handleShowLoginModal}>QQ网页登录</Button>
+      </View>
     </View>
   );
 });
@@ -62,5 +81,10 @@ export default memo(() => {
 const styles = createStyle({
   content: {
     // marginTop: 10,
+  },
+  btnContainer: {
+    marginBottom: 5,
+    paddingLeft: 20,
+    flexDirection: 'row',
   },
 });
