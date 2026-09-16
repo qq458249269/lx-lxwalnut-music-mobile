@@ -2,7 +2,6 @@ import { saveLyric, saveMusicUrl, getMusicUrl as getStoreMusicUrl } from '@/util
 import { updateListMusics } from '@/core/list'
 import settingState from '@/store/setting/state'
 
-import wySdk from '@/utils/musicSdk/wy'
 import {
   buildLyricInfo,
   getPlayQuality,
@@ -11,9 +10,7 @@ import {
   handleGetOnlinePicUrl,
   getCachedLyricInfo, QUALITY_RANK,
 } from './utils'
-import {toast} from "@/utils/tools.ts"
 import {fetchAndApplyDetailedQuality} from "@/utils/musicSdk/wy/musicDetail.js"
-import userState from '@/store/user/state'
 
 /* export const setMusicUrl = ({ musicInfo, type, url }: {
   musicInfo: LX.Music.MusicInfo
@@ -59,7 +56,7 @@ export const getMusicUrl = async ({
   // }
 
   let currentMusicInfo = musicInfo;
-  const preferredQuality = settingState.setting['player.playQuality'];
+  const preferredQuality = settingState.setting['player.playQuality'] as LX.Quality;
 
   // 检查是否需要获取详细音质
   const isWySource = currentMusicInfo.source === 'wy';
@@ -69,10 +66,12 @@ export const getMusicUrl = async ({
   if (isWySource && !hasFullDetails) {
     const availableQualities = Object.keys(currentMusicInfo.meta._qualitys);
     const preferredQualityIndex = QUALITY_RANK.indexOf(preferredQuality);
-    const maxAvailableQualityIndex = Math.min(...(availableQualities as LX.Quality[]).map(q => QUALITY_RANK.indexOf(q)));
+    const qualityIndexes = (availableQualities as LX.Quality[])
+      .map(q => QUALITY_RANK.indexOf(q))
+      .filter(i => i > -1);
 
-    // 特殊情况：用户想要的音质比当前已知的最好音质还要高，此时需要等待获取
-    if (preferredQualityIndex < maxAvailableQualityIndex) {
+    // 用户想要的音质比当前已知的最好音质还高时，阻塞获取详情；否则后台异步
+    if (preferredQualityIndex !== -1 && qualityIndexes.length && preferredQualityIndex < Math.min(...qualityIndexes)) {
       console.log('用户想要的音质比当前已知的最好音质还要高，获取音质详情');
       // 阻塞式获取
       currentMusicInfo = await fetchAndApplyDetailedQuality(currentMusicInfo);
@@ -84,54 +83,8 @@ export const getMusicUrl = async ({
   }
 
   const targetQuality = quality ?? getPlayQuality(preferredQuality, currentMusicInfo);
-
   const cachedUrl = await getStoreMusicUrl(currentMusicInfo, targetQuality)
   if (cachedUrl && !isRefresh) return cachedUrl
-
-  // 定义高音质列表
-  const highQualityLevels: LX.Quality[] = ['flac', 'hires', 'master', 'atmos', 'atmos_plus'];
-
-  const isVipUser = userState.wy_vip_type !== 0;
-  const isVipSong = currentMusicInfo.meta.fee === 1;
-  const isHighQuality = highQualityLevels.includes(targetQuality);
-
-  // 非网易源或不是网易云vip且歌曲是vip歌曲或高音质歌曲
-  const preferApi = !isWySource || (!isVipUser && (isVipSong || isHighQuality))
-
-  console.log("vip:" + userState.wy_vip_type)
-  if (preferApi) {
-    try {
-      console.log('Attempting to get music URL via custom API');
-      // 优先尝试自定义音源 (API)
-      const result = await handleGetOnlineMusicUrl({
-        musicInfo: currentMusicInfo,
-        quality: targetQuality,
-        onToggleSource,
-        isRefresh,
-        allowToggleSource,
-      });
-      console.log('Custom API request succeeded', result);
-      void saveMusicUrl(currentMusicInfo, result.quality, result.url);
-      return result.url;
-    } catch (apiError) {
-      console.log('Custom API request failed', apiError);
-      throw apiError;
-    }
-  }
-
-  // 默认流程
-  if (musicInfo.source == 'wy' && settingState.setting['common.wy_cookie']) {
-    try {
-      const { url } = await wySdk.cookie.getMusicUrl(currentMusicInfo, targetQuality).promise;
-      if (url) {
-        void saveMusicUrl(currentMusicInfo, targetQuality, url);
-        if (currentMusicInfo.id !== musicInfo.id) void saveMusicUrl(musicInfo, targetQuality, url);
-        return url;
-      }
-    } catch (error) {
-      console.log('Get music url with cookie failed, fallback to custom api', error);
-    }
-  }
 
   return handleGetOnlineMusicUrl({
     musicInfo: currentMusicInfo,
@@ -139,11 +92,11 @@ export const getMusicUrl = async ({
     onToggleSource,
     isRefresh,
     allowToggleSource,
-  }).then(({ url, quality: targetQuality, musicInfo: targetMusicInfo, isFromCache }) => {
+  }).then(({ url, quality: resultQuality, musicInfo: targetMusicInfo, isFromCache }) => {
     if (targetMusicInfo.id != currentMusicInfo.id && !isFromCache)
-      void saveMusicUrl(targetMusicInfo, targetQuality, url)
-    void saveMusicUrl(currentMusicInfo, targetQuality, url)
-    if (currentMusicInfo.id !== musicInfo.id) void saveMusicUrl(musicInfo, targetQuality, url)
+      void saveMusicUrl(targetMusicInfo, resultQuality, url)
+    void saveMusicUrl(currentMusicInfo, resultQuality, url)
+    if (currentMusicInfo.id !== musicInfo.id) void saveMusicUrl(musicInfo, resultQuality, url)
     return url
   })
 }

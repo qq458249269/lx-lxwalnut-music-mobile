@@ -64,8 +64,8 @@ export const fetchAndApplyDetailedQuality = async(musicInfo, retryNum = 0) => {
       newTypes.push({ type: 'master', size })
       new_Types.master = { size }
     }
-    if (data.db && data.db.size && !new_Types.atmos) {
-      const size = sizeFormate(data.db.size)
+    if (data.je && data.je.size && !new_Types.atmos) {
+      const size = sizeFormate(data.je.size)
       newTypes.push({ type: 'atmos', size })
       new_Types.atmos = { size }
     }

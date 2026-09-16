@@ -6,7 +6,6 @@ import {
   getPlayerLyric as getStoreLyric,
 } from '@/utils/data'
 import { langS2T, toNewMusicInfo, toOldMusicInfo } from '@/utils'
-import { assertApiSupport } from '@/utils/tools'
 import settingState from '@/store/setting/state'
 import { requestMsg } from '@/utils/message'
 import BackgroundTimer from 'react-native-background-timer'
@@ -296,7 +295,14 @@ export const getOnlineOtherSourceMusicUrl = async ({
   while ((musicInfo = musicInfos.shift()!)) {
     if (retryedSource.includes(musicInfo.source)) continue
     retryedSource.push(musicInfo.source)
-    if (!assertApiSupport(musicInfo.source)) continue
+    // 内置或自定义 API 均可用才尝试
+    let api
+    try {
+      api = apis(musicInfo.source)
+    } catch {
+      api = null
+    }
+    if (!api) continue
     itemQuality = quality ?? getPlayQuality(settingState.setting['player.playQuality'], musicInfo)
     if (!musicInfo.meta._qualitys[itemQuality]) continue
 
@@ -370,14 +376,26 @@ export const handleGetOnlineMusicUrl = async ({
   const targetQuality =
     quality ?? getPlayQuality(settingState.setting['player.playQuality'], musicInfo)
 
-  let reqPromise
+  // 主源无内置/自定义 API 时直接走其他源解析
+  let api
   try {
-    reqPromise = musicSdk[musicInfo.source].getMusicUrl(
-      toOldMusicInfo(musicInfo),
-      targetQuality
-    ).promise
-  } catch (err: any) {
-    reqPromise = Promise.reject(err)
+    api = apis(musicInfo.source)
+  } catch {
+    api = null
+  }
+
+  let reqPromise
+  if (!api) {
+    reqPromise = Promise.reject(new Error('Api is not found'))
+  } else {
+    try {
+      reqPromise = musicSdk[musicInfo.source].getMusicUrl(
+        toOldMusicInfo(musicInfo),
+        targetQuality
+      ).promise
+    } catch (err: any) {
+      reqPromise = Promise.reject(err)
+    }
   }
   return reqPromise
     .then(({ url, type }: { url: string; type: LX.Quality }) => {
