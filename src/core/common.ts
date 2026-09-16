@@ -9,6 +9,7 @@ import settingActions from '@/store/setting/action'
 import settingState from '@/store/setting/state'
 import commonActions from '@/store/common/action'
 import commonState, { type InitState as CommonStateType } from '@/store/common/state'
+import { type COMPONENT_IDS } from '@/config/constant'
 
 import { storageDataPrefix } from '@/config/constant'
 import { saveData } from '@/plugins/storage'
@@ -77,8 +78,8 @@ export const setStatusbarHeight = (size: number) => {
   commonActions.setStatusbarHeight(size)
 }
 
-export const setComponentId = (name: keyof CommonStateType['componentIds'], id: string) => {
-  commonActions.setComponentId(name as any, id)
+export const setComponentId = (name: COMPONENT_IDS, id: string) => {
+  commonActions.setComponentId(name, id)
 }
 export const removeComponentId = (name: string) => {
   commonActions.removeComponentId(name)
@@ -113,6 +114,7 @@ export const requestStoragePermission = async () => {
   if (isGranted) return isGranted
 
   const uri = await selectManagedFolder()
+  if (!uri) return false
   if (!uri.isDirectory) return false
   await setSelectedManagedFolder(uri.path)
   return true

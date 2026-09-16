@@ -36,6 +36,7 @@ const Header = ({ onClose }: { onClose: () => void }) => {
 };
 
 export default forwardRef<YouTubeLoginModalType, {}>((props, ref) => {
+  const theme = useTheme();
   const modalRef = useRef<ModalType>(null);
   const webViewRef = useRef<WebView>(null);
   const loggedInRef = useRef(false);

@@ -31,7 +31,9 @@ export const getNewComment = async (
 ): Promise<CommentInfo> => {
   let resp
   try {
-    resp = await (music[musicInfo.source].comment.getComment(
+    const sdk = music[musicInfo.source]
+    if (!('comment' in sdk)) throw new Error('该音源暂不支持评论')
+    resp = await (sdk.comment.getComment(
       toOldMusicInfo(musicInfo),
       page,
       limit
@@ -52,7 +54,9 @@ export const getHotComment = async (
 ): Promise<CommentInfo> => {
   let resp
   try {
-    resp = await (music[musicInfo.source].comment.getHotComment(
+    const sdk = music[musicInfo.source]
+    if (!('comment' in sdk)) throw new Error('该音源暂不支持评论')
+    resp = await (sdk.comment.getHotComment(
       toOldMusicInfo(musicInfo),
       page,
       limit

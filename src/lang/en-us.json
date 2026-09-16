@@ -616,5 +616,13 @@
   "album_detail": "Album Detail",
   "nav_my_playlist": "My Playlists",
   "exit_app_tip_double_press": "Press back again to exit",
-  "setting_basic_nav_menu": "Sidebar [Menu & Horizontal Scroll] Sorting Settings"
+  "setting_basic_nav_menu": "Sidebar [Menu & Horizontal Scroll] Sorting Settings",
+  "play_MV": "Play MV",
+  "setting_basic_tx_cookie": "QQ Music Cookie (optional)",
+  "setting_basic_tx_cookie_placeholder": "Enter QQ Music Cookie",
+  "setting_basic_wy_cookie": "NetEase Cloud Music Cookie (optional)",
+  "setting_basic_wy_cookie_placeholder": "Enter NetEase Cloud Music Cookie",
+  "setting_player_swipe_to_show_playlist": "Swipe up player bar to show playlist",
+  "source_alias_yt": "YouTube",
+  "source_real_yt": "YouTube"
 }

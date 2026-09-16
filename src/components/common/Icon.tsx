@@ -33,7 +33,6 @@ export const Icon = memo(({ size = 15, rawSize, color, style, ...props }: IconPr
     <IcoMoon
       size={rawSize ?? scaleSizeW(size)}
       color={color ?? theme['c-font']}
-      // @ts-expect-error
       style={newStyle}
       {...props}
     />

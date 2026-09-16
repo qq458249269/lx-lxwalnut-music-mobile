@@ -3,6 +3,7 @@ import { View, TouchableOpacity } from 'react-native'
 
 import { Icon } from '@/components/common/Icon'
 import { pop } from '@/navigation'
+import { COMPONENT_IDS } from '@/config/constant'
 // import { AppColors } from '@/theme'
 import StatusBar from '@/components/common/StatusBar'
 import { useI18n } from '@/lang'
@@ -20,7 +21,8 @@ export default memo(({ musicInfo }: { musicInfo: LX.Music.MusicInfo }) => {
   const statusBarHeight = useStatusbarHeight()
 
   const back = () => {
-    void pop(commonState.componentIds.comment!)
+    const commentComponentId = commonState.componentIds.find(c => c.name === COMPONENT_IDS.comment)?.id
+    if (commentComponentId) void pop(commentComponentId)
   }
 
   return (

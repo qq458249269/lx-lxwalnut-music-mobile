@@ -130,7 +130,7 @@ export const createOneDriveDeviceCode = async (clientId: string) => {
   } as LX.OneDrive.DeviceCodeInfo
 }
 
-const wait = async (time: number) => new Promise(resolve => setTimeout(resolve, time))
+const wait = async (time: number) => new Promise<void>(resolve => setTimeout(() => resolve(), time))
 
 export const pollOneDriveDeviceCode = async (deviceInfo: LX.OneDrive.DeviceCodeInfo) => {
   let interval = deviceInfo.interval

@@ -17,7 +17,7 @@ import MiniProgressBar from "@/components/player/PlayerBar/components/MiniProgre
 import playerState from '@/store/player/state'
 import { LIST_IDS } from '@/config/constant'
 
-export default memo(({ componentId, isHome = false }: { isHome?: boolean }) => {
+export default memo(({ componentId, isHome = false }: { isHome?: boolean; componentId?: string }) => {
   const { keyboardShown } = useKeyboard()
   const theme = useTheme()
   const musicInfo = usePlayerMusicInfo()

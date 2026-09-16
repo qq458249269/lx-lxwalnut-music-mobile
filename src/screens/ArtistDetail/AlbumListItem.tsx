@@ -53,7 +53,7 @@ export default memo(({ componentId, item, width, viewMode }: { componentId: stri
       } else {
         removeWySubscribedAlbum(item.id)
       }
-    }).catch(err => {
+    }).catch((err: Error) => {
       toast(`操作失败: ${err.message}`)
     })
   }

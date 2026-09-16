@@ -15,6 +15,7 @@ const defaultSetting: LX.AppSetting = {
   'common.useSystemFileSelector': true,
   'common.wy_cookie': '',
   'common.wy_serpapi_key': '',
+  'common.tx_cookie': '',
   'common.yt_cookie': '',
   'common.alwaysKeepStatusbarHeight': false,
   'common.isShowStartupGreeting': true,
@@ -73,6 +74,7 @@ const defaultSetting: LX.AppSetting = {
   'playDetail.vertical.style.lrcFontSize': 200,
   'playDetail.horizontal.style.lrcFontSize': 220,
   'playDetail.landscapeImmersion.style.lrcFontSize': 240,
+  'playDetail.landscapeImmersion.style.lrcAlign': 'center',
   'playDetail.landscapeImmersion.showControl': true,
   'playDetail.isShowLyricProgressSetting': true,
 

@@ -7,11 +7,23 @@ import { useI18n } from '@/lang'
 import { scaleSizeW } from '@/utils/pixelRatio'
 import Text from '@/components/common/Text'
 import { createStyle } from '@/utils/tools'
+import type { SubscribedAlbumInfo } from '@/store/user/state'
 
 const MIN_WIDTH = scaleSizeW(120);
 const HORIZONTAL_SPACING = 24;
 
-export default memo(({ componentId,  albums, loading, hasMore, onLoadMore, onRefresh, ListHeaderComponent, viewMode }) => {
+interface AlbumListProps {
+  componentId: string
+  albums: SubscribedAlbumInfo[]
+  loading: boolean
+  hasMore: boolean
+  onLoadMore: () => void
+  onRefresh: () => void
+  ListHeaderComponent?: React.ComponentType<any> | React.ReactElement | null
+  viewMode: 'grid' | 'list'
+}
+
+export default memo(({ componentId,  albums, loading, hasMore, onLoadMore, onRefresh, ListHeaderComponent, viewMode }: AlbumListProps) => {
   const { onLayout, width } = useLayout()
   const theme = useTheme()
   const t = useI18n()
@@ -31,15 +43,15 @@ export default memo(({ componentId,  albums, loading, hasMore, onLoadMore, onRef
     return { num, itemWidth }
   }, [width, viewMode, isHorizontal])
 
-  const renderItem = ({ item }: { item: any }) => {
+  const renderItem = ({ item }: { item: SubscribedAlbumInfo | { id: string } }) => {
     if (item.id.toString().startsWith('white__')) {
       return <View style={{ width: rowInfo.itemWidth }} />
     }
     return <AlbumListItem componentId={componentId} item={item} width={rowInfo.itemWidth} viewMode={viewMode} />
   }
 
-  const list = useMemo(() => {
-    const list = [...albums]
+  const list = useMemo<(SubscribedAlbumInfo | { id: string })[]>(() => {
+    const list: (SubscribedAlbumInfo | { id: string })[] = [...albums]
     if (rowInfo.num <= 1) return list
     if (rowInfo.num === 0) return list // Avoid division by zero
     let whiteItemNum = list.length % rowInfo.num

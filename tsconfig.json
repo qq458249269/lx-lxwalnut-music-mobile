@@ -1,13 +1,24 @@
 {
-  "extends": "@react-native/typescript-config/tsconfig.json",
   "compilerOptions": {
     "module": "ESNext",
-    "types": ["react-native", "node"],
+    "moduleResolution": "bundler",
+    "jsx": "react-native",
+    "target": "ESNext",
+    "lib": ["ESNext"],
+    "allowJs": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "types": ["react", "react-native", "react-native-background-timer", "react-native-vector-icons", "he"],
     "skipLibCheck": true,
     "baseUrl": "./",
     "paths": {
       "@/*": ["src/*"]
     }
   },
+  "include": ["src"],
   "exclude": ["node_modules", "build", "dist"]
 }

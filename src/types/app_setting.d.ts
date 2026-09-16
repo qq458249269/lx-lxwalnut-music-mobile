@@ -75,6 +75,7 @@ declare global {
       'common.wy_cookie': string
       'common.wy_serpapi_key': string
       'common.yt_cookie': string
+      'common.tx_cookie': string
 
       /**
        * 总是保留状态栏高度
@@ -248,6 +249,7 @@ declare global {
        * 播放详情页-横屏沉浸模式-歌词字体大小
        */
       'playDetail.landscapeImmersion.style.lrcFontSize': number
+      'playDetail.landscapeImmersion.style.lrcAlign': 'center' | 'left' | 'right'
 
       /**
        * 播放详情页-横屏沉浸模式-是否显示控制栏

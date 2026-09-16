@@ -585,7 +585,7 @@ export default memo(() => {
   }, [filteredSongs, searchText, songs])
 
   useEffect(() => {
-    const handleJumpPosition = () => {
+    const handleJumpPosition = async () => {
       const rawMusicInfo = playerState.playMusicInfo.musicInfo
       const musicInfo = rawMusicInfo && 'progress' in rawMusicInfo ? rawMusicInfo.metadata.musicInfo : rawMusicInfo
       if (!musicInfo) return

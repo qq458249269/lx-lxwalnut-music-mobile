@@ -183,7 +183,7 @@ export default forwardRef<OnlineListType, OnlineListProps>(
       const musicInfos = info.selectedList.length ? info.selectedList : [info.musicInfo]
       const songIds = musicInfos.map(m => m.meta.songId)
       wyApi.manipulatePlaylistTracks('del', playlistId, songIds).then(() => {
-        if (sourcePlaylist.name === sourcePlaylist.creator.nickname + '喜欢的音乐') {
+        if (sourcePlaylist?.creator && sourcePlaylist.name === sourcePlaylist.creator.nickname + '喜欢的音乐') {
           songIds.forEach(removeWyLikedSong)
         }
         toast(t('list_edit_action_tip_remove_success'))
@@ -195,7 +195,7 @@ export default forwardRef<OnlineListType, OnlineListProps>(
         clearListDetailCache('wy', playlistId)
         global.app_event.playlist_updated({ source: 'wy', listId: playlistId })
         hancelExitSelect()
-      }).catch(err => {
+      }).catch((err: any) => {
         toast('移除失败: ' + err.message)
       })
     }, [listId, hancelExitSelect, t])

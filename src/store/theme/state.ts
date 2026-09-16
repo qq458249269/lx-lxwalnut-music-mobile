@@ -11,6 +11,7 @@ const theme = {
   name: '',
   isDark: false,
   'c-liked': '#ef4444',
+  'c-success': '#07c160',
   'c-primary': 'rgb(77, 175, 124)',
   'c-primary-dark-100': 'rgb(69,158,112)',
   'c-primary-dark-100-alpha-100': 'rgba(69, 158, 112, 0.90)',

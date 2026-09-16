@@ -5,6 +5,7 @@ import Header from './Header';
 import OnlineList, { type OnlineListType } from '@/components/OnlineList';
 import { toast, createStyle } from '@/utils/tools';
 import { setComponentId } from '@/core/common';
+import { COMPONENT_IDS } from '@/config/constant';
 import PlayerBar from '@/components/player/PlayerBar';
 import { playOnlineList } from '@/core/list';
 import { usePlayerMusicInfo } from '@/store/player/hook';
@@ -18,9 +19,9 @@ export default memo(({ componentId, similarSongs: initialSimilarSongs }: { compo
   const [similarSongs, setSimilarSongs] = useState(initialSimilarSongs)
 
   useEffect(() => {
-    const handleJumpPosition = () => {
+    const handleJumpPosition = async () => {
       let listId = playerState.playMusicInfo.listId;
-      if (listId === LIST_IDS.TEMP) listId = listState.tempListMeta.id;
+      if (listId === LIST_IDS.TEMP) listId = listState.tempListMeta.id ?? listId;
       if (listId !== 'similar_songs_list') return;
 
       const musicInfo = playerState.playMusicInfo.musicInfo;
@@ -35,7 +36,7 @@ export default memo(({ componentId, similarSongs: initialSimilarSongs }: { compo
   }, [])
 
   useEffect(() => {
-    setComponentId('SIMILAR_SONGS_SCREEN', componentId);
+    setComponentId(COMPONENT_IDS.SIMILAR_SONGS_SCREEN, componentId);
     if (similarSongs && similarSongs.length) {
       listRef.current?.setList(similarSongs);
       listRef.current?.setStatus('end');

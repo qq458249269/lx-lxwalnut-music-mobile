@@ -281,6 +281,7 @@ declare global {
         'c-content-background': string
         'c-border-background': string
         'c-liked': string;
+        'c-success': string;
         'bg-image'?: ImageSourcePropType
       }
 

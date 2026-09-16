@@ -11,7 +11,7 @@ export interface InitState {
   allList: Array<LX.List.MyDefaultListInfo | LX.List.MyLoveListInfo | LX.List.UserListInfo>
 
   tempListMeta: {
-    id: string
+    id?: string
   }
 
   fetchingListStatus: Record<string, boolean>

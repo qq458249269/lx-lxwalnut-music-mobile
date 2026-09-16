@@ -312,6 +312,8 @@
   "setting_basic_source_user_api_btn": "自定义源管理",
   "setting_basic_wy_cookie": "网易云音乐 Cookie",
   "setting_basic_wy_cookie_placeholder": "在此处粘贴你的 Cookie",
+  "setting_basic_tx_cookie": "QQ音乐 Cookie",
+  "setting_basic_tx_cookie_placeholder": "在此处粘贴你的 Cookie(网页 y.qq.com 登录后复制)",
   "setting_basic_sourcename": "歌曲来源名称",
   "setting_basic_sourcename_alias": "别名",
   "setting_basic_sourcename_real": "原名",

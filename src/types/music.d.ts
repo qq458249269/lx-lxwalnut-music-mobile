@@ -34,6 +34,10 @@ declare namespace LX {
       albumName: string // 歌曲专辑名称
       picUrl?: string | null // 歌曲图片链接
       toggleMusicInfo?: MusicInfoOnline | null
+      // [fork] 本地文件名/路径与视频(有mv字段的音乐可播放mv)
+      fileName?: string
+      filePath?: string
+      mv?: number
     }
 
     interface MusicInfoMeta_online extends MusicInfoMetaBase {
