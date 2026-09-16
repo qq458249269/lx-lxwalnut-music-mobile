@@ -18,6 +18,7 @@ import IsAlwaysKeepStatusbarHeight from './IsAlwaysKeepStatusbarHeight'
 import DrawerLayoutPosition from './DrawerLayoutPosition'
 import { useI18n } from '@/lang/i18n'
 import WyCookie from './WyCookie'
+import TxCookie from './TxCookie'
 import NavMenu from "@/screens/Home/Views/Setting/settings/Basic/NavMenu.tsx";
 
 export default memo(() => {
@@ -45,6 +46,7 @@ export default memo(() => {
       <Source />
       <SourceName />
       <WyCookie />
+      <TxCookie />
     </Section>
   )
 })

@@ -16,15 +16,17 @@ import listState from '@/store/list/state'
 import { LIST_IDS } from '@/config/constant'
 import { type OnlineListType } from '@/components/OnlineList'
 import {usePlayerMusicInfo} from "@/store/player/hook.ts";
+import type { SubscribedAlbumInfo } from '@/store/user/state'
+import { COMPONENT_IDS } from '@/config/constant'
 
 const SONG_LIMIT = 100;
 const ALBUM_LIMIT = 100;
 
 export default memo(({ componentId, artistInfo }: { componentId: string, artistInfo: { id: string, name: string } }) => {
-  const [artistDetail, setArtistDetail] = useState(null);
-  const [songs, setSongs] = useState({ list: [], hasMore: true, page: 1, loading: false, sort: 'hot' });
-  const [albums, setAlbums] = useState({ list: [], hasMore: true, page: 1, loading: false });
-  const [activeTab, setActiveTab] = useState('songs');
+  const [artistDetail, setArtistDetail] = useState<{ artist: { id: string; name: string }; hotSongs: LX.Music.MusicInfoOnline[] } | null>(null);
+  const [songs, setSongs] = useState<{ list: LX.Music.MusicInfoOnline[]; hasMore: boolean; page: number; loading: boolean; sort: 'hot' | 'time' }>({ list: [], hasMore: true, page: 1, loading: false, sort: 'hot' });
+  const [albums, setAlbums] = useState<{ list: SubscribedAlbumInfo[]; hasMore: boolean; page: number; loading: boolean }>({ list: [], hasMore: true, page: 1, loading: false });
+  const [activeTab, setActiveTab] = useState<'songs' | 'albums'>('songs');
   const albumViewMode = useSettingValue('artistDetail.albumViewMode')
   const componentIdRef = useRef(componentId)
   const songListRef = useRef<any>(null)
@@ -42,9 +44,9 @@ export default memo(({ componentId, artistInfo }: { componentId: string, artistI
 
 
   useEffect(() => {
-    const handleJumpPosition = () => {
+    const handleJumpPosition = async () => {
       let listId = playerState.playMusicInfo.listId
-      if (listId === LIST_IDS.TEMP) listId = listState.tempListMeta.id
+      if (listId === LIST_IDS.TEMP) listId = listState.tempListMeta.id ?? listId
       if (listId !== `artist_detail_${artistInfo.id}`) return
 
       const musicInfo = playerState.playMusicInfo.musicInfo as LX.Music.MusicInfoOnline
@@ -74,21 +76,21 @@ export default memo(({ componentId, artistInfo }: { componentId: string, artistI
   }, [songs.list])
 
   useEffect(() => {
-    setComponentId('ARTIST_DETAIL', componentId);
+    setComponentId(COMPONENT_IDS.ARTIST_DETAIL, componentId);
     componentIdRef.current = componentId;
 
     const cachedDetail = getArtistDetailCache(artistInfo.id);
     if (cachedDetail) {
       setArtistDetail(cachedDetail);
     } else {
-      wyApi.getDetail(artistInfo.id).then(data => {
+      wyApi.getDetail(artistInfo.id).then((data: { artist: { id: string; name: string }; hotSongs: LX.Music.MusicInfoOnline[] }) => {
         setArtistDetailCache(artistInfo.id, data); // 存入缓存
         setArtistDetail(data);
       }).catch(() => toast('获取歌手信息失败'));
     }
   }, [componentId, artistInfo.id]);
 
-  const loadSongs = useCallback((sort, page, isRefresh = false) => {
+  const loadSongs = useCallback((sort: 'hot' | 'time', page: number, isRefresh = false) => {
     const cacheKey = `${artistInfo.id}_songs_${sort}_${page}`;
 
     // 从全局缓存读取
@@ -108,7 +110,7 @@ export default memo(({ componentId, artistInfo }: { componentId: string, artistI
     setSongs(prev => {
       if (!isRefresh && (prev.loading || !prev.hasMore)) return prev;
       const offset = (page - 1) * SONG_LIMIT;
-      wyApi.getSongs(artistInfo.id, sort, SONG_LIMIT, offset).then(data => {
+      wyApi.getSongs(artistInfo.id, sort, SONG_LIMIT, offset).then((data: { list: LX.Music.MusicInfoOnline[]; hasMore: boolean }) => {
         // 写入全局缓存
         setArtistCache(cacheKey, { list: data.list, hasMore: data.hasMore });
 
@@ -128,7 +130,7 @@ export default memo(({ componentId, artistInfo }: { componentId: string, artistI
     });
   }, [artistInfo.id]);
 
-  const loadAlbums = useCallback((page, isRefresh = false) => {
+  const loadAlbums = useCallback((page: number, isRefresh = false) => {
     const cacheKey = `${artistInfo.id}_albums_${page}`;
 
     // 从全局缓存读取
@@ -147,7 +149,7 @@ export default memo(({ componentId, artistInfo }: { componentId: string, artistI
     setAlbums(prev => {
       if (!isRefresh && (prev.loading || !prev.hasMore)) return prev;
       const offset = (page - 1) * ALBUM_LIMIT;
-      wyApi.getAlbums(artistInfo.id, ALBUM_LIMIT, offset).then(data => {
+      wyApi.getAlbums(artistInfo.id, ALBUM_LIMIT, offset).then((data: { hotAlbums: SubscribedAlbumInfo[]; hasMore: boolean }) => {
         // 写入全局缓存
         setArtistCache(cacheKey, { hotAlbums: data.hotAlbums, hasMore: data.hasMore });
 
@@ -193,13 +195,13 @@ export default memo(({ componentId, artistInfo }: { componentId: string, artistI
   };
 
   // 调用全局缓存清理
-  const handleSortChange = (newSort) => {
+  const handleSortChange = (newSort: 'hot' | 'time') => {
     if (songs.sort === newSort) return;
     clearArtistCache(artistInfo.id); // 清理该歌手所有缓存
     setSongs(prev => ({ ...prev, sort: newSort, list: [], page: 1, hasMore: true }));
   };
 
-  const handleTabChange = (newTab) => {
+  const handleTabChange = (newTab: 'songs' | 'albums') => {
     if (activeTab === newTab) return;
     setActiveTab(newTab);
   };
@@ -207,7 +209,7 @@ export default memo(({ componentId, artistInfo }: { componentId: string, artistI
   const handleRefresh = useCallback(() => {
     clearArtistCache(artistInfo.id);
 
-    wyApi.getDetail(artistInfo.id).then(data => {
+    wyApi.getDetail(artistInfo.id).then((data: { artist: { id: string; name: string }; hotSongs: LX.Music.MusicInfoOnline[] }) => {
       setArtistDetailCache(artistInfo.id, data);
       setArtistDetail(data);
     }).catch(() => toast('刷新歌手信息失败'));

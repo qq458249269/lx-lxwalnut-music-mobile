@@ -35,23 +35,23 @@ const handleReadDir = async (
       // console.log(path)
       if (filterRxp != null && path.isFile && !filterRxp.test(path.name)) continue
 
-      const isDirectory = path.isDirectory
+      const isDirectory = !!path.isDirectory
       if (dirOnly) {
         list.push({
           name: path.name,
           path: path.path,
-          mtime: new Date(path.lastModified),
-          size: path.size,
+          mtime: new Date(path.lastModified ?? 0),
+          size: path.size ?? 0,
           isDir: isDirectory,
           sizeText: isDirectory ? '' : sizeFormate(path.size ?? 0),
-          disabled: path.isFile,
+          disabled: !!path.isFile,
         })
       } else {
         list.push({
           name: path.name,
           path: path.path,
-          mtime: new Date(path.lastModified),
-          size: path.size,
+          mtime: new Date(path.lastModified ?? 0),
+          size: path.size ?? 0,
           isDir: isDirectory,
           sizeText: isDirectory ? '' : sizeFormate(path.size ?? 0),
         })

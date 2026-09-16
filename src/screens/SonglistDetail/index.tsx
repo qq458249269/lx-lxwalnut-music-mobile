@@ -158,7 +158,7 @@ const ListHeader = ({ detailInfo, info, onBack }: { detailInfo: DetailInfo, info
   )
 }
 
-export default ({ info, onBack, initialScrollToInfo }: { info: ListInfoItem, onBack?: () => void, initialScrollToInfo: MusicInfoOnline | null }) => {
+export default ({ info, onBack, componentId, initialScrollToInfo }: { info: ListInfoItem, onBack: () => void, componentId?: string, initialScrollToInfo: MusicInfoOnline | null }) => {
   const musicListRef = useRef<MusicListType>(null)
   const [detailInfo, setDetailInfo] = useState<DetailInfo>({
     name: info.name,
@@ -181,9 +181,9 @@ export default ({ info, onBack, initialScrollToInfo }: { info: ListInfoItem, onB
   }, [info.source, info.id])
 
   useEffect(() => {
-    const handleJumpPosition = () => {
+    const handleJumpPosition = async () => {
       let listId = playerState.playMusicInfo.listId
-      if (listId === LIST_IDS.TEMP) listId = listState.tempListMeta.id
+      if (listId === LIST_IDS.TEMP) listId = listState.tempListMeta.id ?? listId
       if (listId !== `${info.source}__${info.id}`) return
       const musicInfo = playerState.playMusicInfo.musicInfo
       if (musicInfo) {

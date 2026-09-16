@@ -40,17 +40,17 @@ export default forwardRef<MetadataEditType, MetadataEditProps>((props, ref) => {
     void Promise.all([
       readMetadata(filePath),
       readPic(filePath).catch(() => ''),
-      readLyric(filePath, false).catch(() => ''),
+      readLyric(filePath).catch(() => ''),
     ]).then(async ([_metadata, pic, lyric]) => {
       if (!_metadata) return
       if (isUnmounted.current) return
       metadata.current = {
-        name: _metadata.name,
-        singer: _metadata.singer,
-        albumName: _metadata.albumName,
-        pic,
-        interval: formatPlayTime2(_metadata.interval),
-        lyric,
+        name: _metadata.name as string,
+        singer: _metadata.singer as string,
+        albumName: _metadata.albumName as string,
+        pic: pic as string,
+        interval: formatPlayTime2(Number(_metadata.interval)),
+        lyric: lyric as string,
       }
       requestAnimationFrame(() => {
         metadataFormRef.current?.setForm(filePath, metadata.current)

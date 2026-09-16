@@ -47,7 +47,7 @@ export default memo(({ isStylized, stylizedSelection }: RecSongsProps) => {
   const [isAllSimilarSongsFetched, setIsAllSimilarSongsFetched] = useState(false)
 
   useEffect(() => {
-    const handleJumpPosition = () => {
+    const handleJumpPosition = async () => {
       const listId = playerState.playMusicInfo.listId === LIST_IDS.TEMP
         ? listState.tempListMeta.id
         : playerState.playMusicInfo.listId

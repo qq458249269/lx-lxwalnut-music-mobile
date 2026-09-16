@@ -216,7 +216,7 @@ export const setMusicUrl = (
         setStatusText('')
         
         // 如果是 WebDAV 音乐，且下载完成后正在播放，我们需要停止当前可能的幽灵播放并重新设置资源
-        const isWebDAVMusic = 'webdav' in currentMusicInfo.meta && (currentMusicInfo.meta as any).webdav === true
+        const isWebDAVMusic = 'meta' in currentMusicInfo && 'webdav' in currentMusicInfo.meta
         if (isWebDAVMusic) {
           // 停止播放并清除队列，防止幽灵播放
           void setStop().then(() => {

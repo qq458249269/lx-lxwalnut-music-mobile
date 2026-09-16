@@ -18,7 +18,6 @@ import { requestStoragePermission } from '@/utils/tools'
 import settingState from '@/store/setting/state'
 import { btoa } from 'react-native-quick-base64'
 import playerState from '@/store/player/state'
-import appEvent from '@/event/appEvent'
 
 let webDAVModule: typeof import('@/core/webdavMusic/drive') | null = null
 let webDAVLog: {
@@ -204,7 +203,7 @@ const downloadWebDAVMusic = async (musicInfo: LX.WebDAV.MusicInfo): Promise<stri
       if (playerState.playMusicInfo.musicInfo?.id === musicInfo.id) {
         const playerAction = await import('@/store/player/action')
         const updatedMusicInfo = { ...playerState.playMusicInfo.musicInfo }
-        if (updatedMusicInfo && updatedMusicInfo.meta) {
+        if (updatedMusicInfo && 'meta' in updatedMusicInfo) {
           updatedMusicInfo.meta.filePath = filePath
         }
         playerAction.default.setPlayMusicInfo(playerState.playMusicInfo.listId, updatedMusicInfo, playerState.playMusicInfo.isTempPlay)
@@ -381,7 +380,7 @@ export const getPicUrl = async ({
             void module.updateWebDAVMusicMeta(musicInfo.id, { picUrl })
             
             // 触发全局事件通知列表页和详情页更新
-            appEvent.webdavPicUpdated(musicInfo.id, picUrl)
+            global.app_event.webdavPicUpdated(musicInfo.id, picUrl)
             
             return picUrl
           }

@@ -74,12 +74,14 @@ export default forwardRef<ChoosePathType, ChoosePathProps>(
             .then((file) => {
               // console.log(file)
               if (!file || isUnmounted.current) return
-              if (options.filter && !options.filter.some(ext => file.data.toLowerCase().endsWith('.' + ext))) {
+              const data = file.data
+              if (!data) return
+              if (options.filter && !options.filter.some(ext => data.toLowerCase().endsWith('.' + ext))) {
                 toast(t('storage_file_no_match'), 'long')
-                void unlink(file.data)
+                void unlink(data)
                 return
               }
-              onConfirm(file.data)
+              onConfirm(data)
             })
             .catch((err) => {
               if (isUnmounted.current) return

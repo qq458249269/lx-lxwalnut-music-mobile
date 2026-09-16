@@ -6,6 +6,7 @@ import { setBgPic } from '@/core/common'
 import wyUserApi from '@/utils/musicSdk/wy/user';
 import { setWyFollowedArtists, setWyLikedSongs, setWySubscribedAlbums } from '@/store/user/action';
 import { toast } from '@/utils/tools';
+import type { FollowedArtistInfo, SubscribedAlbumInfo } from '@/store/user/state';
 
 // const handleUpdateSourceNmaes = () => {
 //   const prefix = settingState.setting['common.sourceNameType'] == 'real' ? 'source_' : 'source_alias_'
@@ -77,12 +78,12 @@ export default async (setting: LX.AppSetting) => {
     if (cookie) {
       console.log('正在刷新网易云数据...');
       wyUserApi.getUid(cookie)
-        .then(uid => Promise.all([
+        .then((uid: string | number) => Promise.all([
           wyUserApi.getLikedSongList(uid, cookie),
           wyUserApi.getAllSublist(cookie),
           wyUserApi.getAllSubAlbumList(cookie),
         ]))
-        .then(([likedIds, followedArtists, subscribedAlbums]) => {
+        .then(([likedIds, followedArtists, subscribedAlbums]: [(string | number)[], FollowedArtistInfo[], SubscribedAlbumInfo[]]) => {
           setWyLikedSongs(likedIds);
           setWyFollowedArtists(followedArtists);
           setWySubscribedAlbums(subscribedAlbums);

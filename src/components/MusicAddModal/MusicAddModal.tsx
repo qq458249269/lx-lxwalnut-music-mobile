@@ -64,7 +64,7 @@ export default forwardRef<MusicAddModalType, MusicAddModalProps>(({ onAdded }, r
     })
   }
 
-  const handleSelect = (listInfo: LX.List.MyListInfo) => {
+  const handleSelect = (listInfo: LX.List.MyListInfo | LX.List.SubscribedPlaylistInfo) => {
     dialogRef.current?.setVisible(false)
     const { musicInfo, listId: fromListId, isMove } = selectInfo
     if (playlistType === 'online') {
@@ -75,7 +75,7 @@ export default forwardRef<MusicAddModalType, MusicAddModalProps>(({ onAdded }, r
 
       if (isMove) {
         wyApi.manipulatePlaylistTracks('add', toListId, [songId]).then(() => {
-          if (listInfo.name === listInfo.creator.nickname + '喜欢的音乐') {
+          if (listInfo.creator && listInfo.name === listInfo.creator.nickname + '喜欢的音乐') {
             addWyLikedSong(songId)
           }
           const sourcePlaylistId = fromListId.replace('wy__', '');
@@ -83,7 +83,7 @@ export default forwardRef<MusicAddModalType, MusicAddModalProps>(({ onAdded }, r
           global.app_event.playlist_updated({ source: 'wy', listId: toListId })
           return wyApi.manipulatePlaylistTracks('del', sourcePlaylistId, [songId]);
         }).then(() => {
-          if (sourcePlaylist.name === sourcePlaylist.creator.nickname + '喜欢的音乐') {
+          if (sourcePlaylist?.creator && sourcePlaylist.name === sourcePlaylist.creator.nickname + '喜欢的音乐') {
             removeWyLikedSong(songId)
           }
           onAdded?.()
@@ -93,12 +93,12 @@ export default forwardRef<MusicAddModalType, MusicAddModalProps>(({ onAdded }, r
           updateWySubscribedPlaylistTrackCount(sourcePlaylistId, -1);
           clearListDetailCache('wy', sourcePlaylistId)
           global.app_event.playlist_updated({ source: 'wy', listId: sourcePlaylistId })
-        }).catch((err) => {
+        }).catch((err: any) => {
           toast(err.message || t('list_edit_action_tip_move_failed'));
         });
       } else {
         wyApi.manipulatePlaylistTracks('add', toListId, [songId]).then(() => {
-          if (listInfo.name === listInfo.creator.nickname + '喜欢的音乐') {
+          if (listInfo.creator && listInfo.name === listInfo.creator.nickname + '喜欢的音乐') {
             addWyLikedSong(songId)
           }
           onAdded?.()
@@ -106,7 +106,7 @@ export default forwardRef<MusicAddModalType, MusicAddModalProps>(({ onAdded }, r
           updateWySubscribedPlaylistTrackCount(toListId, 1)
           clearListDetailCache('wy', toListId)
           global.app_event.playlist_updated({ source: 'wy', listId: toListId })
-        }).catch((err) => {
+        }).catch((err: any) => {
           toast(err.message || t('list_edit_action_tip_add_failed'));
         });
       }
@@ -116,7 +116,7 @@ export default forwardRef<MusicAddModalType, MusicAddModalProps>(({ onAdded }, r
     if (selectInfo.isMove) {
       void moveListMusics(
         selectInfo.listId,
-        listInfo.id,
+        String(listInfo.id),
         [selectInfo.musicInfo!],
         settingState.setting['list.addMusicLocationType']
       )
@@ -129,7 +129,7 @@ export default forwardRef<MusicAddModalType, MusicAddModalProps>(({ onAdded }, r
         })
     } else {
       void addListMusics(
-        listInfo.id,
+        String(listInfo.id),
         [selectInfo.musicInfo!],
         settingState.setting['list.addMusicLocationType']
       )
@@ -151,10 +151,10 @@ export default forwardRef<MusicAddModalType, MusicAddModalProps>(({ onAdded }, r
           <Title musicInfo={selectInfo.musicInfo} isMove={selectInfo.isMove} />
           <View style={{ flexDirection: 'row', justifyContent: 'center', paddingVertical: 10 }}>
             <Button onPress={() => handlePlaylistTypeChange('local')} style={{ marginRight: 10, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 4, backgroundColor: playlistType === 'local' ? theme['c-button-background-active'] : theme['c-button-background'] }}>
-              <Text color={theme['c-button-font']}>本地歌单</Text>
+              <Text style={{ color: theme['c-button-font'] }}>本地歌单</Text>
             </Button>
             <Button onPress={() => handlePlaylistTypeChange('online')} style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 4, backgroundColor: playlistType === 'online' ? theme['c-button-background-active'] : theme['c-button-background'] }}>
-              <Text color={theme['c-button-font']}>在线歌单</Text>
+              <Text style={{ color: theme['c-button-font'] }}>在线歌单</Text>
             </Button>
           </View>
           <List musicInfo={selectInfo.musicInfo} onPress={handleSelect} playlistType={playlistType} />

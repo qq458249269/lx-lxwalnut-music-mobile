@@ -69,11 +69,11 @@ export const useMusicList = () => {
   return list
 }
 
-export const useMusicExistsList = (list: LX.List.MyListInfo, musicInfo: LX.Music.MusicInfo) => {
+export const useMusicExistsList = (list: { id: string | number }, musicInfo: LX.Music.MusicInfo) => {
   const [isExists, setExists] = useState(false)
 
   useEffect(() => {
-    void getListMusics(list.id).then((musics) => {
+    void getListMusics(String(list.id)).then((musics) => {
       setExists(musics.some((s) => s.id == musicInfo.id))
     })
   }, [list.id, musicInfo.id])

@@ -8,6 +8,7 @@ import { setComponentId } from '@/core/common'
 import { COMPONENT_IDS } from '@/config/constant'
 import PageContent from '@/components/PageContent'
 import commonState, { type InitState as CommonState } from '@/store/common/state'
+import { COMPONENT_IDS } from '@/config/constant'
 
 import Pic from './Pic'
 // import ControlBtn from './ControlBtn'
@@ -27,7 +28,7 @@ export default memo(({ componentId }: { componentId: string }) => {
     let appstateListener = AppState.addEventListener('change', (state) => {
       switch (state) {
         case 'active':
-          if (!commonState.componentIds.comment) screenkeepAwake()
+          if (!commonState.componentIds.some(c => c.name === COMPONENT_IDS.comment)) screenkeepAwake()
           break
         case 'background':
           screenUnkeepAwake()
@@ -36,7 +37,7 @@ export default memo(({ componentId }: { componentId: string }) => {
     })
 
     const handleComponentIdsChange = (ids: CommonState['componentIds']) => {
-      if (ids.comment) screenUnkeepAwake()
+      if (ids.some(c => c.name === COMPONENT_IDS.comment)) screenUnkeepAwake()
       else if (AppState.currentState == 'active') screenkeepAwake()
     }
 

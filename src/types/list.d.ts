@@ -10,6 +10,20 @@ declare namespace LX {
       locationUpdateTime: number | null
     }
 
+    interface SubscribedPlaylistInfo {
+      id: string | number
+      userId: string | number
+      name: string
+      coverImgUrl: string
+      trackCount: number
+      description?: string
+      creator?: {
+        nickname: string
+        userId: string | number
+      }
+      playCount?: number
+    }
+
     interface MyDefaultListInfo {
       id: 'default'
       name: '试听列表'
@@ -32,7 +46,18 @@ declare namespace LX {
       }
     }
 
-    type MyListInfo = MyDefaultListInfo | MyLoveListInfo | UserListInfo
+    type MyListInfo = (MyDefaultListInfo | MyLoveListInfo | UserListInfo) & {
+      // [fork] 网易云歌单数据（喜欢的音乐等）
+      creator?: {
+        nickname?: string
+        userId?: string | number
+      }
+      playCount?: number
+      trackCount?: number
+      coverImgUrl?: string
+      userId?: string | number
+      description?: string
+    }
 
     interface MyAllList {
       defaultList: MyDefaultListInfo

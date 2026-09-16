@@ -28,9 +28,9 @@ export default forwardRef<MusicListType, MusicListProps>(({componentId, isCreato
   const info = useListInfo()
 
   useEffect(() => {
-    const handleJumpPosition = () => {
+    const handleJumpPosition = async () => {
       let listId = playerState.playMusicInfo.listId
-      if (listId === LIST_IDS.TEMP) listId = listState.tempListMeta.id
+      if (listId === LIST_IDS.TEMP) listId = listState.tempListMeta.id ?? listId
       if (listId !== `${info.source}__${info.id}`) return
 
       const musicInfo = playerState.playMusicInfo.musicInfo

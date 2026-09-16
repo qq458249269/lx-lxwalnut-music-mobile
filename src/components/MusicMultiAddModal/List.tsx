@@ -69,7 +69,7 @@ export default ({
                   playlistType,
                 }: {
   listId: string
-  onPress: (listInfo: LX.List.MyListInfo) => void
+  onPress: (listInfo: LX.List.MyListInfo | LX.List.SubscribedPlaylistInfo) => void
   playlistType: 'local' | 'online'
 }) => {
   const windowSize = useWindowSize()

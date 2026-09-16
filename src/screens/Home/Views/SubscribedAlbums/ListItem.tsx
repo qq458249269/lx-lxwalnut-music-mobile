@@ -35,7 +35,7 @@ export default memo(({ item, showSubscribeButton = false }: { item: any, showSub
     navigations.pushAlbumDetailScreen(commonState.componentIds[commonState.componentIds.length - 1]?.id!, albumInfo)
   }
 
-  const toggleSubscribe = useCallback((event) => {
+  const toggleSubscribe = useCallback((event: { stopPropagation: () => void }) => {
     event.stopPropagation()
     const newSubState = !isSubscribed
     wyApi.subAlbum(String(item.id), newSubState).then(() => {
@@ -53,7 +53,7 @@ export default memo(({ item, showSubscribeButton = false }: { item: any, showSub
       } else {
         removeWySubscribedAlbum(item.id)
       }
-    }).catch(err => {
+    }).catch((err: any) => {
       toast(`操作失败: ${err.message}`)
     })
   }, [isSubscribed, item])

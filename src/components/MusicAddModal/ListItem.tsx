@@ -12,8 +12,8 @@ export default ({
   musicInfo,
   width,
 }: {
-  listInfo: LX.List.MyListInfo
-  onPress: (listInfo: LX.List.MyListInfo) => void
+  listInfo: LX.List.MyListInfo | LX.List.SubscribedPlaylistInfo
+  onPress: (listInfo: LX.List.MyListInfo | LX.List.SubscribedPlaylistInfo) => void
   musicInfo: LX.Music.MusicInfo
   width: number
 }) => {

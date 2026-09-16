@@ -79,9 +79,9 @@ export default () => {
 
 
   useEffect(() => {
-    const handleJumpPosition = () => {
+    const handleJumpPosition = async () => {
       let listId = playerState.playMusicInfo.listId
-      if (listId === LIST_IDS.TEMP) listId = listState.tempListMeta.id
+      if (listId === LIST_IDS.TEMP) listId = listState.tempListMeta.id ?? listId
       if (!listId || !listId.includes('__')) return
 
       const playlistId = listId.split('__')[1]

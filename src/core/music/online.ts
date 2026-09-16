@@ -69,7 +69,7 @@ export const getMusicUrl = async ({
   if (isWySource && !hasFullDetails) {
     const availableQualities = Object.keys(currentMusicInfo.meta._qualitys);
     const preferredQualityIndex = QUALITY_RANK.indexOf(preferredQuality);
-    const maxAvailableQualityIndex = Math.min(...availableQualities.map(q => QUALITY_RANK.indexOf(q)));
+    const maxAvailableQualityIndex = Math.min(...(availableQualities as LX.Quality[]).map(q => QUALITY_RANK.indexOf(q)));
 
     // 特殊情况：用户想要的音质比当前已知的最好音质还要高，此时需要等待获取
     if (preferredQualityIndex < maxAvailableQualityIndex) {

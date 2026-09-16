@@ -1,12 +1,17 @@
 import {forwardRef, useImperativeHandle, useRef, useState, useCallback, memo, useEffect} from 'react'
 import { FlatList, RefreshControl } from 'react-native'
 import musicSearch from '@/utils/musicSdk/wy/musicSearch'
+import type { FollowedArtistInfo, SubscribedAlbumInfo } from '@/store/user/state'
 import { useTheme } from '@/store/theme/hook'
 import SingerListItem from '../FollowedArtists/ListItem'
 import AlbumListItem from '../../Views/SubscribedAlbums/ListItem'
 
-export default forwardRef(({ searchType }, ref) => {
-  const [list, setList] = useState([])
+interface SearchResultListProps {
+  searchType: string
+}
+
+const SearchResultList = forwardRef<{ loadList(text: string): void }, SearchResultListProps>(({ searchType }, ref) => {
+  const [list, setList] = useState<(FollowedArtistInfo | SubscribedAlbumInfo)[]>([])
   const [loading, setLoading] = useState(false)
   const searchInfoRef = useRef({ text: '', page: 1, hasMore: true })
   const theme = useTheme()
@@ -17,11 +22,11 @@ export default forwardRef(({ searchType }, ref) => {
     searchInfoRef.current.hasMore = true
   }, [searchType])
 
-  const handleLoad = useCallback((text, page, isRefresh = false) => {
+  const handleLoad = useCallback((text: string, page: number, isRefresh = false) => {
     if (loading || (!isRefresh && !searchInfoRef.current.hasMore)) return
     setLoading(true)
 
-    let searchPromise
+    let searchPromise: Promise<{ list: (FollowedArtistInfo | SubscribedAlbumInfo)[]; total: number }>
     if (searchType === 'singer') {
       searchPromise = musicSearch.searchSinger(text, page)
     } else if (searchType === 'album') {
@@ -47,7 +52,7 @@ export default forwardRef(({ searchType }, ref) => {
     },
   }))
 
-  const renderItem = ({ item }) => {
+  const renderItem = ({ item }: { item: FollowedArtistInfo | SubscribedAlbumInfo }) => {
     if (searchType === 'singer') {
       return <SingerListItem artist={item} showFollowButton={true}  />
     }
@@ -74,3 +79,5 @@ export default forwardRef(({ searchType }, ref) => {
     />
   )
 })
+
+export default SearchResultList

@@ -34,16 +34,16 @@ export default ({ isEdit, onHide, playlistType }: { isEdit: boolean; onHide: () 
         toast('请先登录网易云音乐')
         return
       }
-      wyApi.createPlaylist(name).then(playlist => {
+      wyApi.createPlaylist(name).then((playlist: LX.List.SubscribedPlaylistInfo) => {
         toast('创建成功')
         addWySubscribedPlaylist({
           id: playlist.id,
-          userId: playlist.userId,
+          userId: Number(playlist.userId),
           name: playlist.name,
           coverImgUrl: playlist.coverImgUrl,
           trackCount: playlist.trackCount,
         })
-      }).catch(err => {
+      }).catch((err: any) => {
         toast(`创建失败: ${err.message}`)
       })
     } else {

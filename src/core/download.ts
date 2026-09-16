@@ -54,7 +54,8 @@ const startDownload = async (task: DownloadTask) => {
     const highQualityLevels: LX.Quality[] = ['flac', 'hires', 'master', 'atmos', 'atmos_plus'];
     console.log(`[Batch Download] Forcing cookie for ${task.musicInfo.name}`);
     try {
-      const result = await wySdk.cookie.getMusicUrl(task.musicInfo, task.quality).promise;
+      const result = (await wySdk.cookie.getMusicUrl(task.musicInfo, task.quality)
+        .promise) as unknown as { url: string; level: string };
       if (!result.url) throw new Error('Cookie 未能获取到URL');
       if (result.level === 'exhigh' && highQualityLevels.includes(task.quality)) {
         throw new Error(`请求的音质 ${task.quality} 不可用`);
@@ -137,7 +138,7 @@ const handleMetadata = async (task: DownloadTask, filePath: string) => {
         name: title,
         singer: task.musicInfo.singer,
         albumName: task.musicInfo.meta.albumName,
-      }, true);
+      });
       downloadActions.updateTask(task.id, { metadataStatus: { ...task.metadataStatus, tags: 'success' } });
     } catch (e) {
       toast('标签信息写入失败', 'short');
@@ -149,7 +150,7 @@ const handleMetadata = async (task: DownloadTask, filePath: string) => {
   // 写入封面
   if (settingState.setting['download.writePicture']) {
     try {
-      const picUrl = await getPicUrl({ musicInfo: task.musicInfo });
+      const picUrl = await getPicUrl({ musicInfo: task.musicInfo as LX.Music.MusicInfoOnline, isRefresh: false });
       const extension = getFileExtensionFromUrl(picUrl)
       const picPath = `${downloadDir}/temp.${extension}`
       await RNFetchBlob.config({ path: picPath }).fetch('GET', picUrl);
@@ -208,7 +209,7 @@ export const retryMetadata = async (taskId: string) => {
         name: title,
         singer: task.musicInfo.singer,
         albumName: task.musicInfo.meta.albumName,
-      }, true);
+      });
       metadataStatus.tags = 'success';
     } catch (e: any) {
       console.error(`[Retry Metadata] Write Tags Error for ${task.musicInfo.name}:`, e.message);
@@ -219,7 +220,7 @@ export const retryMetadata = async (taskId: string) => {
   // 重试写入封面
   if (metadataStatus.cover === 'fail' && settingState.setting['download.writePicture']) {
     try {
-      const picUrl = await getPicUrl({ musicInfo: task.musicInfo as LX.Music.MusicInfoOnline });
+      const picUrl = await getPicUrl({ musicInfo: task.musicInfo as LX.Music.MusicInfoOnline, isRefresh: false });
       const extension = getFileExtensionFromUrl(picUrl);
       const picPath = `${RNFetchBlob.fs.dirs.CacheDir}/lx_temp_pic_${task.id}.${extension}`;
 
@@ -399,6 +400,6 @@ export const batchDownload = async (musicInfos: LX.Music.MusicInfo[]) => {
   toast(`准备添加 ${wyMusicInfos.length} 首歌曲到下载队列...`);
   for (const musicInfo of wyMusicInfos) {
     addTask(musicInfo, quality, true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise<void>(resolve => setTimeout(() => resolve(), 1000));
   }
 };

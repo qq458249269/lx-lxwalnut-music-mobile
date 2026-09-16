@@ -159,7 +159,7 @@ const List = forwardRef<ListType, ListProps>(
         })
       }
 
-      const handleJumpPosition = () => {
+      const handleJumpPosition = async () => {
         requestAnimationFrame(() => {
           const listId = playerState.playMusicInfo.listId
           if (!listId) return

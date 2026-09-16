@@ -439,9 +439,9 @@ export const getOnlineOtherSourcePicUrl = async ({
   if (musicInfo.meta.picUrl && !isRefresh)
     return { musicInfo, url: musicInfo.meta.picUrl, isFromCache: true }
 
-  let reqPromise
+  let reqPromise: Promise<string>
   try {
-    reqPromise = musicSdk[musicInfo.source].getPic(toOldMusicInfo(musicInfo))
+    reqPromise = musicSdk[musicInfo.source].getPic(toOldMusicInfo(musicInfo)) as Promise<string>
   } catch (err: any) {
     reqPromise = Promise.reject(err)
   }
@@ -475,9 +475,9 @@ export const handleGetOnlinePicUrl = async ({
   isFromCache: boolean
 }> => {
   // console.log(musicInfo.source)
-  let reqPromise
+  let reqPromise: Promise<string>
   try {
-    reqPromise = musicSdk[musicInfo.source].getPic(toOldMusicInfo(musicInfo))
+    reqPromise = musicSdk[musicInfo.source].getPic(toOldMusicInfo(musicInfo)) as Promise<string>
   } catch (err) {
     reqPromise = Promise.reject(err)
   }

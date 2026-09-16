@@ -3,6 +3,7 @@ import { getWebDAVConfig, updateWebDAVMusicMeta, getWebDAVDownloadUrl, saveWebDA
 import { downloadFile, existsFile, mkdir, getWebDAVPrivateDirectory } from '@/utils/fs'
 import { toast, clipboardWriteText, requestStoragePermission } from '@/utils/tools'
 import settingState from '@/store/setting/state'
+import playerState from '@/store/player/state'
 import { btoa } from 'react-native-quick-base64'
 import { updateListMusics } from '@/core/list'
 import { webDAVLog } from '@/core/webdavMusic/logger'

@@ -16,14 +16,14 @@ import listState from '@/store/list/state'
 import {usePlayerMusicInfo} from "@/store/player/hook.ts";
 
 export default memo(({ componentId, albumInfo }: { componentId: string; albumInfo: ListInfoItem }) => {
-  const [albumDetail, setAlbumDetail] = useState({ info: null, list: [] })
+  const [albumDetail, setAlbumDetail] = useState<{ info: null; list: LX.Music.MusicInfoOnline[] }>({ info: null, list: [] })
   const listRef = useRef<OnlineListType>(null)
   const playerMusicInfo = usePlayerMusicInfo()
 
   useEffect(() => {
-    const handleJumpPosition = () => {
+    const handleJumpPosition = async () => {
       let listId = playerState.playMusicInfo.listId
-      if (listId === LIST_IDS.TEMP) listId = listState.tempListMeta.id
+      if (listId === LIST_IDS.TEMP) listId = listState.tempListMeta.id ?? listId
       if (listId !== `album_${albumInfo.id}`) return
 
       const musicInfo = playerState.playMusicInfo.musicInfo
@@ -40,7 +40,7 @@ export default memo(({ componentId, albumInfo }: { componentId: string; albumInf
   useEffect(() => {
     setComponentId(COMPONENT_IDS.ALBUM_DETAIL_SCREEN, componentId);
     listRef.current?.setStatus('loading');
-    wyApi.getAlbum(albumInfo.id).then(data => {
+    wyApi.getAlbum(albumInfo.id).then((data: { info: null; list: LX.Music.MusicInfoOnline[] }) => {
       setAlbumDetail(data);
       listRef.current?.setList(data.list);
       listRef.current?.setStatus('idle');
@@ -52,7 +52,7 @@ export default memo(({ componentId, albumInfo }: { componentId: string; albumInf
 
   const onRefresh = useCallback(() => {
     listRef.current?.setStatus('refreshing');
-    wyApi.getAlbum(albumInfo.id).then(data => {
+    wyApi.getAlbum(albumInfo.id).then((data: { info: null; list: LX.Music.MusicInfoOnline[] }) => {
       setAlbumDetail(data);
       listRef.current?.setList(data.list);
       listRef.current?.setStatus('idle');

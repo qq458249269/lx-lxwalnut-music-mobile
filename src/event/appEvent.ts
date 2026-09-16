@@ -213,8 +213,9 @@ export class AppEvent extends Event {
     }
 
     if (listId === LIST_IDS.TEMP) {
-      listId = listState.tempListMeta.id
+      listId = listState.tempListMeta.id ?? listId
     }
+    if (!listId) return
 
     const currentComponentId = commonState.componentIds[commonState.componentIds.length - 1]?.id
     if (!currentComponentId) return
@@ -329,6 +330,20 @@ export class AppEvent extends Event {
   jumpOneDrivePosition() {
     this.emit('jumpOneDrivePosition')
   }
+
+  // [tx/yt fork] 事件：设置页 Web 登录
+  showWebLogin() {
+    this.emit('showWebLogin')
+  }
+  showYouTubeLogin() {
+    this.emit('showYouTubeLogin')
+  }
+  'wy-cookie-set'(cookie: string) {
+    this.emit('wy-cookie-set', cookie)
+  }
+  'yt-cookie-set'(cookie: string) {
+    this.emit('yt-cookie-set', cookie)
+  }
 }
 
 type EventMethods = Omit<EventType, keyof Event>
@@ -338,7 +353,7 @@ declare class EventType extends AppEvent {
   off<K extends keyof EventMethods>(event: K, listener: EventMethods[K]): any
 }
 
-export type AppEventTypes = Omit<EventType, keyof Omit<Event, 'on' | 'off'>>
+export type AppEventTypes = Omit<EventType, keyof Omit<Event, 'on' | 'off' | 'emit'>>
 export const createAppEventHub = (): AppEventTypes => {
   return new AppEvent()
 }

@@ -18,7 +18,7 @@ export default memo(({ artist, showFollowButton = false }: { artist: any, showFo
   const theme = useTheme()
   const isFollowed = useIsWyArtistFollowed(artist.id)
 
-  const handleFollow = (event) => {
+  const handleFollow = (event: { stopPropagation: () => void }) => {
     event.stopPropagation()
     const newFollowState = !isFollowed
     wyApi.followSinger(String(artist.id), newFollowState).then(() => {
@@ -36,7 +36,7 @@ export default memo(({ artist, showFollowButton = false }: { artist: any, showFo
       } else {
         removeWyFollowedArtist(artist.id)
       }
-    }).catch(err => {
+    }).catch((err: any) => {
       toast(`操作失败: ${err.message}`)
     })
   }

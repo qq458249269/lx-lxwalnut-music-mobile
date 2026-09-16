@@ -4,7 +4,6 @@ import { createListEventHub } from '@/event/listEvent'
 import { createDislikeEventHub } from '@/event/dislikeEvent'
 import { createStateEventHub } from '@/event/stateEvent'
 if (process.versions == null) {
-  // @ts-expect-error
   process.versions = {
     app: version,
   }

@@ -84,7 +84,7 @@ export default memo(() => {
         </View>
         <View style={styles.btn}>
           <Button onPress={handleOpenVersionModal}>{t('setting_version_show_ver_modal')}</Button>
-          <Button onPress={checkUpdate}>{t('version_btn_check_update')}</Button>
+          <Button onPress={() => checkUpdate()}>{t('version_btn_check_update')}</Button>
         </View>
 
         <IsAutoCheckUpdate />

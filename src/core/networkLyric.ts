@@ -14,7 +14,7 @@ const COMMAND_VOLUME_UP = 'volume_up';
 const COMMAND_VOLUME_DOWN = 'volume_down';
 
 let targetIp: string | null = null;
-let ipClearTimeout: NodeJS.Timeout | null = null;
+let ipClearTimeout: number | null = null;
 
 let lyricSocket: dgram.Socket | null = null;
 let commandSocket: dgram.Socket | null = null;
@@ -32,7 +32,7 @@ const startLyricSocket = () => {
   if (lyricSocket) return;
   try {
     lyricSocket = dgram.createSocket('udp4');
-    lyricSocket.on('message', (msg, rinfo) => {
+    lyricSocket.on('message', (msg: Buffer, rinfo: any) => {
       if (msg.toString() === 'LX_LYRIC_CLIENT_HERE') {
         console.log(`>>>>> [网络歌词] 发现接收端: ${rinfo.address}`);
         targetIp = rinfo.address;
@@ -53,7 +53,7 @@ const startLyricSocket = () => {
       }
     });
 
-    lyricSocket.on('error', (err) => {
+    lyricSocket.on('error', (err: any) => {
       console.error('>>>>> [网络歌词] UDP 歌词广播 Socket 错误:', err);
       destroyLyricSocket();
     });
@@ -66,7 +66,7 @@ const startCommandListener = () => {
   if (commandSocket) return;
   try {
     commandSocket = dgram.createSocket('udp4');
-    commandSocket.on('message', (msg) => {
+    commandSocket.on('message', (msg: Buffer) => {
       const command = msg.toString();
       console.log(`>>>>> [网络命令] 收到命令: ${command}`);
       switch (command) {
@@ -92,7 +92,7 @@ const startCommandListener = () => {
       console.log(`>>>>> [网络命令] UDP 命令监听器已在端口 ${COMMAND_PORT} 启动`);
     });
 
-    commandSocket.on('error', (err) => {
+    commandSocket.on('error', (err: any) => {
       console.error('>>>>> [网络命令] UDP 命令监听器错误:', err);
       stopCommandListener();
     });
@@ -113,7 +113,7 @@ const sendUdpPacket = (lineInfo: { text: string; extendedLyrics: string[] }) => 
   };
 
   const message = Buffer.from(JSON.stringify(payload));
-  lyricSocket.send(message, 0, message.length, BROADCAST_PORT, targetIp, (err) => {
+  lyricSocket.send(message, 0, message.length, BROADCAST_PORT, targetIp, (err: any) => {
     if (err) console.error('>>>>> [网络歌词] 发送失败:', err);
   });
 };

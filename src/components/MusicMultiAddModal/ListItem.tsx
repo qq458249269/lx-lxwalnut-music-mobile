@@ -10,8 +10,8 @@ export default ({
   onPress,
   width,
 }: {
-  listInfo: LX.List.MyListInfo
-  onPress: (listInfo: LX.List.MyListInfo) => void
+  listInfo: LX.List.MyListInfo | LX.List.SubscribedPlaylistInfo
+  onPress: (listInfo: LX.List.MyListInfo | LX.List.SubscribedPlaylistInfo) => void
   width: number
 }) => {
   const theme = useTheme()

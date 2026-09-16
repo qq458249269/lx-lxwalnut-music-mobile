@@ -17,6 +17,7 @@ import {
   setWySubscribedPlaylists,
   setWyUid
 } from '@/store/user/action.ts'
+import type { FollowedArtistInfo, SubscribedAlbumInfo, SubscribedPlaylistInfo } from '@/store/user/state'
 import {getDownloadTasks} from "@/utils/data/download.ts";
 import downloadActions from '@/store/download/action';
 // const initPrevPlayInfo = async(appSetting: LX.AppSetting) => {
@@ -52,33 +53,33 @@ export default async (appSetting: LX.AppSetting) => {
   if (wy_cookie) {
     bootLog('Wy like list init...')
     wyUserApi.getUid(wy_cookie)
-      .then(uid =>
+      .then((uid: string) =>
       {
         setWyUid(uid)
-        wyUserApi.getLikedSongList(uid, wy_cookie).then(ids => {
+        wyUserApi.getLikedSongList(uid, wy_cookie).then((ids: (string | number)[]) => {
           setWyLikedSongs(ids)
           bootLog('Wy like list inited.')
         })
-        wyUserApi.getAllSublist(wy_cookie).then(artists => {
+        wyUserApi.getAllSublist(wy_cookie).then((artists: FollowedArtistInfo[]) => {
           setWyFollowedArtists(artists)
           bootLog('Wy followed artists inited.')
-        }).catch(err => {
+        }).catch((err: any) => {
           bootLog(`Wy followed artists init failed: ${err.message}`)
         })
-        wyUserApi.getAllSubAlbumList(wy_cookie).then(albums => {
+        wyUserApi.getAllSubAlbumList(wy_cookie).then((albums: SubscribedAlbumInfo[]) => {
           setWySubscribedAlbums(albums)
           bootLog('Wy liked albums inited.')
-        }).catch(err => {
+        }).catch((err: any) => {
           bootLog(`Wy liked albums init failed: ${err.message}`)
         })
-        wyUserApi.getUserPlaylists(uid, wy_cookie).then(playlists => {
+        wyUserApi.getUserPlaylists(uid, wy_cookie).then((playlists: SubscribedPlaylistInfo[]) => {
           setWySubscribedPlaylists(playlists)
           bootLog('Wy subscribed playlists inited.')
-        }).catch(err => {
+        }).catch((err: any) => {
           bootLog(`Wy subscribed playlists init failed: ${err.message}`)
         })
       })
-      .catch(err => {
+      .catch((err: any) => {
         bootLog(`Wy like list init failed: ${err.message}`)
       })
   }

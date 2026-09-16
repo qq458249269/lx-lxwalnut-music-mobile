@@ -93,25 +93,31 @@ declare global {
   var isDev: boolean
   var lx: GlobalData
   var i18n: I18n
-  var app_event: AppEventTypes & {
-    showArtistSelector: (artists: Artist[], onSelect: (artist: Artist) => void) => void;
-    triggerSearch: (text: string) => void;
-    'wy-cookie-set': (cookie: string) => void
-    'yt-cookie-set': (cookie: string) => void
-    showWebLogin: () => void
-    showYouTubeLogin: () => void
-    showVideoPlayer: (url: string) => void
-  }
+  var app_event: AppEventTypes
   var list_event: ListEventTypes
   var dislike_event: DislikeEventTypes
   var state_event: StateEventTypes
 
-  var Buffer: typeof _Buffer
+  var Buffer: typeof import('buffer').Buffer
+  type Buffer = import('buffer').Buffer
+
+  var global: typeof globalThis & {
+    isDev: boolean
+    lx: GlobalData
+    i18n: I18n
+    app_event: AppEventTypes
+    list_event: ListEventTypes
+    dislike_event: DislikeEventTypes
+    state_event: StateEventTypes
+    Buffer: typeof import('buffer').Buffer
+  }
 
   module NodeJS {
     interface ProcessVersions {
       app: string
     }
+    // RN/Hermes 定时器返回 number；保留 Timeout 别名仅为兼容历史 `NodeJS.Timeout` 类型标注
+    type Timeout = number
   }
   // var process: Process
 }

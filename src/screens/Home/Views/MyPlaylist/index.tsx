@@ -34,9 +34,9 @@ export default memo(() => {
   selectedPlaylistRef.current = selectedPlaylist
 
   useEffect(() => {
-    const handleJumpPosition = () => {
+    const handleJumpPosition = async () => {
       let listId = playerState.playMusicInfo.listId
-      if (listId === LIST_IDS.TEMP) listId = listState.tempListMeta.id
+      if (listId === LIST_IDS.TEMP) listId = listState.tempListMeta.id ?? listId
       if (!listId?.startsWith('wy__')) return
 
       const playlistId = listId.replace('wy__', '')
