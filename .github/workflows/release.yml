@@ -131,6 +131,8 @@ jobs:
     steps:
       - name: Check out git repository
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Download Artifacts
         uses: actions/download-artifact@v5
