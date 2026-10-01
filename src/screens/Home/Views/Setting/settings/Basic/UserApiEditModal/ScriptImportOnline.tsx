@@ -1,13 +1,12 @@
-import { useRef, useImperativeHandle, forwardRef, useState } from 'react'
+import { useRef, useImperativeHandle, forwardRef, useState, useCallback } from 'react'
 import ConfirmAlert, { type ConfirmAlertType } from '@/components/common/ConfirmAlert'
 import Text from '@/components/common/Text'
-import { View } from 'react-native'
+import { View, type LayoutChangeEvent } from 'react-native'
 import Input, { type InputType } from '@/components/common/Input'
 import { createStyle, toast } from '@/utils/tools'
 import { useTheme } from '@/store/theme/hook'
 import { useI18n } from '@/lang'
-import { httpFetch } from '@/utils/request'
-import { handleImportScript } from './action'
+import { handleImportOnlineScripts, parseImportUrls } from './action'
 
 interface UrlInputType {
   setText: (text: string) => void
@@ -17,7 +16,7 @@ interface UrlInputType {
 const UrlInput = forwardRef<UrlInputType, {}>((props, ref) => {
   const theme = useTheme()
   const [text, setText] = useState('')
-  const [placeholder, setPlaceholder] = useState('')
+  const [height, setHeight] = useState(90)
   const inputRef = useRef<InputType>(null)
 
   useImperativeHandle(ref, () => ({
@@ -26,21 +25,29 @@ const UrlInput = forwardRef<UrlInputType, {}>((props, ref) => {
     },
     setText(text) {
       setText(text)
-      setPlaceholder(global.i18n.t('user_api_btn_import_online_input_tip'))
     },
     focus() {
       inputRef.current?.focus()
     },
   }))
 
+  const handleLayout = useCallback(({ nativeEvent }: LayoutChangeEvent) => {
+    setHeight(nativeEvent.layout.height)
+  }, [])
+
   return (
-    <Input
-      ref={inputRef}
-      placeholder={placeholder}
-      value={text}
-      onChangeText={setText}
-      style={{ ...styles.input, backgroundColor: theme['c-primary-input-background'] }}
-    />
+    <View style={styles.inputContent} onLayout={handleLayout}>
+      <Input
+        ref={inputRef}
+        placeholder={global.i18n.t('user_api_btn_import_online_input_tip')}
+        value={text}
+        onChangeText={setText}
+        multiline
+        textAlignVertical="top"
+        size={13}
+        style={{ ...styles.input, height, backgroundColor: theme['c-primary-input-background'] }}
+      />
+    </View>
   )
 })
 
@@ -81,29 +88,23 @@ export default forwardRef<ScriptImportOnlineType, {}>((props, ref) => {
   }))
 
   const handleImport = async () => {
-    let url = urlInputRef.current?.getText() ?? ''
-    if (!/^https?:\/\//.test(url)) {
-      url = ''
-      urlInputRef.current?.setText('')
-    }
-    if (!url.length) return
-    setBtn({ disabled: true, text: t('user_api_btn_import_online_input_loading') })
-    let script: string
-    try {
-      script = (await httpFetch(url).promise.then((resp) => resp.body)) as string
-    } catch (err: any) {
-      toast(t('user_api_import_failed_tip', { message: err.message }), 'long')
+    const urls = parseImportUrls(urlInputRef.current?.getText() ?? '')
+    if (!urls.length) {
+      toast(t('user_api_import_no_url_tip'))
       return
+    }
+    setBtn({ disabled: true, text: t('user_api_btn_import_online_input_loading') })
+    try {
+      await handleImportOnlineScripts(urls, (current, total) => {
+        setBtn({
+          disabled: true,
+          text: t('user_api_btn_import_online_input_progress', { current, total }),
+        })
+      })
+      alertRef.current?.setVisible(false)
     } finally {
       setBtn({ disabled: false, text: t('user_api_btn_import_online_input_confirm') })
     }
-    if (script.length > 9_000_000) {
-      toast(t('user_api_import_failed_tip', { message: 'Too large script' }), 'long')
-      return
-    }
-    void handleImportScript(script)
-
-    alertRef.current?.setVisible(false)
   }
 
   return visible ? (
@@ -127,12 +128,16 @@ const styles = createStyle({
     flexShrink: 1,
     flexDirection: 'column',
   },
+  inputContent: {
+    flexGrow: 0,
+    flexShrink: 1,
+  },
   input: {
     flexGrow: 1,
     flexShrink: 1,
     minWidth: 290,
     borderRadius: 4,
-    // paddingTop: 2,
-    // paddingBottom: 2,
+    paddingTop: 5,
+    paddingBottom: 5,
   },
 })

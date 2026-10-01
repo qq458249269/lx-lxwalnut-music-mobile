@@ -7,6 +7,7 @@ import { useI18n } from '@/lang'
 import { useUserApiList, state as userApiState } from '@/store/userApi'
 import { useSettingValue } from '@/store/setting/hook'
 import { removeUserApi, setUserApiAllowShowUpdateAlert } from '@/core/userApi'
+import { checkAndUpdateUserApi, getUserApiUpdateUrl } from '@/core/userApiUpdate'
 import { BorderRadius } from '@/theme'
 import CheckBox from '@/components/common/CheckBox'
 import { Icon } from '@/components/common/Icon'
@@ -22,11 +23,13 @@ const ListItem = ({
   activeId,
   onRemove,
   onChangeAllowShowUpdateAlert,
+  onUpdate,
 }: {
   item: LX.UserApi.UserApiInfo
   activeId: string
   onRemove: (id: string, name: string) => void
   onChangeAllowShowUpdateAlert: (id: string, enabled: boolean) => void
+  onUpdate: (info: LX.UserApi.UserApiInfo) => void
 }) => {
   const theme = useTheme()
   const t = useI18n()
@@ -35,6 +38,9 @@ const ListItem = ({
   }
   const handleRemove = () => {
     onRemove(item.id, item.name)
+  }
+  const handleUpdate = () => {
+    onUpdate(item)
   }
 
   return (
@@ -71,6 +77,11 @@ const ListItem = ({
         />
       </View>
       <View style={styles.listItemRight}>
+        {getUserApiUpdateUrl(item) ? (
+          <TouchableOpacity style={styles.btn} onPress={handleUpdate}>
+            <Icon name="available_updates" color={theme['c-font-label']} />
+          </TouchableOpacity>
+        ) : null}
         <TouchableOpacity style={styles.btn} onPress={handleRemove}>
           <Icon name="close" color={theme['c-button-font']} />
         </TouchableOpacity>
@@ -112,6 +123,9 @@ export default () => {
   const handleChangeAllowShowUpdateAlert = useCallback((id: string, enabled: boolean) => {
     void setUserApiAllowShowUpdateAlert(id, enabled)
   }, [])
+  const handleUpdate = useCallback(async (info: LX.UserApi.UserApiInfo) => {
+    await checkAndUpdateUserApi(info)
+  }, [])
 
   return (
     <ScrollView style={styles.scrollView} keyboardShouldPersistTaps={'always'}>
@@ -125,6 +139,7 @@ export default () => {
                 activeId={apiSource}
                 onRemove={handleRemove}
                 onChangeAllowShowUpdateAlert={handleChangeAllowShowUpdateAlert}
+                onUpdate={handleUpdate}
               />
             )
           })

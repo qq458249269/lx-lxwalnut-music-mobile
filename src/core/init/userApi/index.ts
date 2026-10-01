@@ -12,6 +12,7 @@ import BackgroundTimer from 'react-native-background-timer'
 import { fetchData } from './request'
 import { getUserApiList } from '@/utils/data'
 import { confirmDialog, openUrl, tipDialog } from '@/utils/tools'
+import { autoCheckAndUpdateUserApis } from '@/core/userApiUpdate'
 
 export default async (setting: LX.AppSetting) => {
   const userApiRequestMap = new Map<
@@ -279,4 +280,8 @@ export default async (setting: LX.AppSetting) => {
   })
 
   setUserApiList(await getUserApiList())
+  // 延迟检查自定义源更新，避免与其他启动弹窗冲突
+  setTimeout(() => {
+    void autoCheckAndUpdateUserApis()
+  }, 15_000)
 }

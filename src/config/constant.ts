@@ -128,6 +128,10 @@ export type NAV_ID_Type = (typeof NAV_MENUS)[number]['id']
 
 export const LXM_FILE_EXT_RXP = ['json', 'lxmc', 'bin']
 export const USER_API_SOURCE_FILE_EXT_RXP = ['js']
+/** 自定义源最大数量 */
+export const USER_API_MAX_COUNT = 20
+/** 自定义源脚本最大体积 */
+export const USER_API_MAX_SCRIPT_SIZE = 9_000_000
 
 export const MUSIC_TOGGLE_MODE = {
   listLoop: 'listLoop', // 列表循环

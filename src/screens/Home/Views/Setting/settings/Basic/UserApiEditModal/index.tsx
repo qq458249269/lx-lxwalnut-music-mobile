@@ -8,6 +8,7 @@ import Dialog, { type DialogType } from '@/components/common/Dialog'
 import Button from '@/components/common/Button'
 import List from './List'
 import ImportBtn from './ImportBtn'
+import { checkAndUpdateUserApis } from '@/core/userApiUpdate'
 
 // interface UrlInputType {
 //   setText: (text: string) => void
@@ -133,6 +134,16 @@ export default forwardRef<UserApiEditModalType, {}>((props, ref) => {
         >
           <Text size={14} color={theme['c-button-font']}>
             {t('close')}
+          </Text>
+        </Button>
+        <Button
+          style={{ ...styles.btn, backgroundColor: theme['c-button-background'] }}
+          onPress={() => {
+            void checkAndUpdateUserApis()
+          }}
+        >
+          <Text size={14} color={theme['c-button-font']}>
+            {t('user_api_btn_check_update')}
           </Text>
         </Button>
         <ImportBtn btnStyle={{ ...styles.btn, backgroundColor: theme['c-button-background'] }} />

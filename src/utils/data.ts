@@ -581,23 +581,62 @@ const matchInfo = (scriptInfo: string) => {
 
   return infos as Record<keyof typeof INFO_NAMES, string>
 }
-export const addUserApi = async (script: string): Promise<LX.UserApi.UserApiInfo> => {
+/** 解析自定义源脚本头部信息，失败时抛出异常 */
+export const parseUserApiScriptInfo = (
+  script: string
+): Record<keyof typeof INFO_NAMES, string> => {
   const result = /^\/\*[\S|\s]+?\*\//.exec(script)
   if (!result) throw new Error(global.i18n.t('user_api_add_failed_tip'))
 
-  let scriptInfo = matchInfo(result[0])
-
+  const scriptInfo = matchInfo(result[0])
   scriptInfo.name ||= `user_api_${new Date().toLocaleString()}`
+  return scriptInfo
+}
+/** 判断地址是否为可直接下载的脚本地址 */
+const isScriptUrl = (url: string) =>
+  /^https?:\/\/\S+$/i.test(url) && /\.js$/i.test(url.split(/[?#]/)[0])
+export const addUserApi = async (
+  script: string,
+  updateUrl?: string
+): Promise<LX.UserApi.UserApiInfo> => {
+  const scriptInfo = parseUserApiScriptInfo(script)
   const apiInfo: LX.UserApi.UserApiInfo = {
     id: `user_api_${Math.random().toString().substring(2, 5)}_${Date.now()}`,
     ...scriptInfo,
 
     allowShowUpdateAlert: true,
   }
+  if (updateUrl) apiInfo.updateUrl = updateUrl
+  // 本地导入时尝试从脚本头部的 homepage 识别更新地址
+  else if (isScriptUrl(apiInfo.homepage)) apiInfo.updateUrl = apiInfo.homepage
   userApis.push(apiInfo)
   await saveDataMultiple([
     [userApiPrefix, userApis],
     [`${userApiPrefix}${apiInfo.id}`, script],
+  ])
+  return apiInfo
+}
+/** 覆盖自定义源脚本以更新到新版本，保留源 id 及更新弹窗设置 */
+export const updateUserApiScript = async (
+  id: string,
+  script: string,
+  updateUrl?: string
+): Promise<LX.UserApi.UserApiInfo> => {
+  const index = userApis.findIndex((api) => api.id == id)
+  if (index < 0) throw new Error('api not found')
+  const oldInfo = userApis[index]
+  const scriptInfo = parseUserApiScriptInfo(script)
+  const apiInfo: LX.UserApi.UserApiInfo = {
+    ...oldInfo,
+    ...scriptInfo,
+    id: oldInfo.id,
+    allowShowUpdateAlert: oldInfo.allowShowUpdateAlert,
+    updateUrl: updateUrl ?? oldInfo.updateUrl,
+  }
+  userApis.splice(index, 1, apiInfo)
+  await saveDataMultiple([
+    [userApiPrefix, userApis],
+    [`${userApiPrefix}${id}`, script],
   ])
   return apiInfo
 }

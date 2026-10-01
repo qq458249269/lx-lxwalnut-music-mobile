@@ -21,6 +21,8 @@ declare namespace LX {
       author: string
       homepage: string
       version: string
+      /** 音源的更新地址，用于自动检查、更新到新版本 */
+      updateUrl?: string
       sources?: UserApiSources
     }
 
