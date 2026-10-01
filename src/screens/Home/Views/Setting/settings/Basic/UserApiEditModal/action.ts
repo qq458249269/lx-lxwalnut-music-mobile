@@ -50,10 +50,13 @@ const showImportResult = (success: number, failed: number) => {
   }
 }
 
-/** 批量导入在线音源（多个链接回车分隔） */
+/** 批量导入在线音源（多个链接回车分隔），下载优先走国内镜像并逐级降级 */
 export const handleImportOnlineScripts = async (
   urls: string[],
-  onProgress?: (current: number, total: number) => void
+  handlers: {
+    onUrlProgress?: (current: number, total: number) => void
+    onMirrorProgress?: (current: number, total: number) => void
+  } = {}
 ) => {
   const canImportCount = USER_API_MAX_COUNT - state.list.length
   if (canImportCount <= 0) {
@@ -64,9 +67,13 @@ export const handleImportOnlineScripts = async (
   let success = 0
   let failed = 0
   for (const [index, url] of targets.entries()) {
-    onProgress?.(index + 1, targets.length)
+    handlers.onUrlProgress?.(index + 1, targets.length)
     try {
-      const script = await fetchUserApiScript(url)
+      const script = await fetchUserApiScript(url, {
+        onCandidate: ({ index: mirrorIndex, total, isMirror }) => {
+          if (isMirror) handlers.onMirrorProgress?.(mirrorIndex, total)
+        },
+      })
       await importUserApi(script, url)
       success++
     } catch (error: any) {

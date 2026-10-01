@@ -95,11 +95,19 @@ export default forwardRef<ScriptImportOnlineType, {}>((props, ref) => {
     }
     setBtn({ disabled: true, text: t('user_api_btn_import_online_input_loading') })
     try {
-      await handleImportOnlineScripts(urls, (current, total) => {
-        setBtn({
-          disabled: true,
-          text: t('user_api_btn_import_online_input_progress', { current, total }),
-        })
+      await handleImportOnlineScripts(urls, {
+        onUrlProgress: (current, total) => {
+          setBtn({
+            disabled: true,
+            text: t('user_api_btn_import_online_input_progress', { current, total }),
+          })
+        },
+        onMirrorProgress: (current, total) => {
+          setBtn({
+            disabled: true,
+            text: t('user_api_btn_import_online_input_mirror', { current, total }),
+          })
+        },
       })
       alertRef.current?.setVisible(false)
     } finally {

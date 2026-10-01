@@ -1,4 +1,10 @@
-import { USER_API_MAX_SCRIPT_SIZE } from '@/config/constant'
+import {
+  USER_API_FETCH_TIMEOUT,
+  USER_API_FETCH_VERIFY_TIMEOUT,
+  USER_API_MAX_SCRIPT_SIZE,
+  USER_API_SCRIPT_MIRRORS,
+  USER_API_SCRIPT_PROXY_MIRRORS,
+} from '@/config/constant'
 import settingState from '@/store/setting/state'
 import { action, state } from '@/store/userApi'
 import { compareVer } from '@/utils'
@@ -23,18 +29,113 @@ export const getUserApiUpdateUrl = (info: LX.UserApi.UserApiInfo) => {
   return ''
 }
 
-/** 下载脚本内容 */
-export const fetchUserApiScript = async (url: string) => {
+/** github 仓库文件地址 → jsDelivr 路径：owner/repo@ref/dir/file.js */
+const parseGithubScriptPath = (url: string) => {
+  let result = /^https?:\/\/raw\.githubusercontent\.com\/([^/?#]+)\/([^/?#]+)\/([^/?#]+)\/(.+)$/i.exec(
+    url
+  )
+  if (result) {
+    const [, owner, repo, ref, path] = result
+    if (path) return `${owner}/${repo}@${ref}/${path}`
+  }
+  result = /^https?:\/\/(?:www\.)?github\.com\/([^/?#]+)\/([^/?#]+)\/raw\/(.+)$/i.exec(url)
+  if (!result) return ''
+  const [, owner, repo, rest] = result
+  const parts = rest.split('/')
+  // 兼容 github.com/owner/repo/raw/refs/heads/branch/file.js 形式
+  if (parts[0] == 'refs' && parts[1] == 'heads' && parts.length > 3) {
+    return `${owner}/${repo}@${parts[2]}/${parts.slice(3).join('/')}`
+  }
+  if (parts.length < 2) return ''
+  return `${owner}/${repo}@${parts[0]}/${parts.slice(1).join('/')}`
+}
+
+/** 已是 jsDelivr 地址时，提取 owner/repo@ref/path 以便切换其他节点 */
+const JSDELIVR_RXP = /^https?:\/\/[a-z0-9.-]*jsdelivr\.net\/(?:gh|github)\/(.+)$/i
+const parseJsdelivrPath = (url: string) => {
+  const result = JSDELIVR_RXP.exec(url)
+  return result ? result[1] : ''
+}
+
+/**
+ * 构建音源脚本下载地址列表：国内镜像优先，按顺序逐级尝试，全部失败时降级到原地址
+ */
+export const buildUserApiScriptUrls = (url: string) => {
+  const originUrl = url.trim()
+  const urls: string[] = []
+  const add = (u: string) => {
+    if (!u.length || urls.includes(u)) return
+    urls.push(u)
+  }
+
+  const githubPath = parseGithubScriptPath(originUrl)
+  if (githubPath) {
+    for (const mirror of USER_API_SCRIPT_MIRRORS) add(mirror.replace('{path}', githubPath))
+  }
+  const jsdelivrPath = parseJsdelivrPath(originUrl)
+  if (jsdelivrPath) {
+    for (const mirror of USER_API_SCRIPT_MIRRORS) add(mirror.replace('{path}', jsdelivrPath))
+  }
+  // 通用代理镜像，适用于任意地址（含 github release 下载地址）
+  for (const mirror of USER_API_SCRIPT_PROXY_MIRRORS) add(mirror.replace('{url}', originUrl))
+  add(originUrl)
+  return urls
+}
+
+const fetchScriptFromUrl = async (url: string, timeout: number) => {
   const resp = (await httpFetch(url, {
     method: 'get',
-    timeout: 15_000,
+    timeout,
     headers: { Accept: 'text/plain, */*' },
   }).promise) as { statusCode: number, body: any }
   if (resp.statusCode < 200 || resp.statusCode > 299) throw new Error(`HTTP ${resp.statusCode}`)
   const script = typeof resp.body == 'string' ? resp.body : JSON.stringify(resp.body ?? '')
-  if (!script.length) throw new Error(global.i18n.t('user_api_update_empty_script_tip'))
+  if (!script.trim().length) throw new Error(global.i18n.t('user_api_update_empty_script_tip'))
   if (script.length > USER_API_MAX_SCRIPT_SIZE) throw new Error('Too large script')
   return script
+}
+
+export interface FetchUserApiScriptOptions {
+  /** 仅使用原地址，不走镜像 */
+  originOnly?: boolean
+  /** 每个候选地址尝试时回调（用于展示当前尝试的镜像） */
+  onCandidate?: (info: { url: string, index: number, total: number, isMirror: boolean }) => void
+}
+
+/** 按候选列表逐级尝试，返回首个成功的脚本内容及其来源地址 */
+export const fetchUserApiScriptByUrls = async (
+  urls: string[],
+  originUrl: string,
+  options: FetchUserApiScriptOptions = {}
+): Promise<{ script: string, url: string }> => {
+  let lastError: Error | null = null
+  for (const [index, url] of urls.entries()) {
+    options.onCandidate?.({
+      url,
+      index: index + 1,
+      total: urls.length,
+      isMirror: url != originUrl,
+    })
+    try {
+      return { script: await fetchScriptFromUrl(url, USER_API_FETCH_TIMEOUT), url }
+    } catch (err: any) {
+      lastError = err
+      log.warn(`fetch user api script failed (${url}): ${err.message}`)
+    }
+  }
+  throw lastError ?? new Error(global.i18n.t('user_api_update_fetch_failed_tip'))
+}
+
+/**
+ * 下载音源脚本（检查更新与导入共用）
+ * 国内镜像优先，逐级尝试，失败自动降级到下一个镜像，最后尝试原地址
+ */
+export const fetchUserApiScript = async (
+  url: string,
+  options: FetchUserApiScriptOptions = {}
+) => {
+  const urls = options.originOnly ? [url] : buildUserApiScriptUrls(url)
+  return (await fetchUserApiScriptByUrls(urls, url, options)).script
 }
 
 export interface UserApiUpdateInfo {
@@ -48,13 +149,12 @@ export interface UserApiUpdateInfo {
   log: string
 }
 
-/** 检查单个音源是否存在新版本，无新版本时返回 null */
-export const checkUserApiUpdate = async (
-  info: LX.UserApi.UserApiInfo
-): Promise<UserApiUpdateInfo | null> => {
-  const url = getUserApiUpdateUrl(info)
-  if (!url) throw new Error(global.i18n.t('user_api_update_no_url_tip'))
-  const script = await fetchUserApiScript(url)
+/** 根据脚本内容生成更新信息，无新版本时返回 null */
+const createUpdateInfo = (
+  info: LX.UserApi.UserApiInfo,
+  script: string,
+  updateUrl: string
+): UserApiUpdateInfo | null => {
   const scriptInfo = parseUserApiScriptInfo(script)
   const version = scriptInfo.version || ''
   // 无版本号无法比较版本，视为无可用更新
@@ -66,12 +166,37 @@ export const checkUserApiUpdate = async (
       ...scriptInfo,
       id: info.id,
       allowShowUpdateAlert: info.allowShowUpdateAlert,
-      updateUrl: url,
+      updateUrl,
     },
     script,
     version,
     log: scriptInfo.description || '',
   }
+}
+
+/**
+ * 检查单个音源是否存在新版本，无新版本时返回 null
+ * 下载优先走国内镜像；若镜像返回的版本无更新，则用原地址复核一次，避免 CDN 缓存导致的漏更新
+ */
+export const checkUserApiUpdate = async (
+  info: LX.UserApi.UserApiInfo,
+  options: FetchUserApiScriptOptions = {}
+): Promise<UserApiUpdateInfo | null> => {
+  const url = getUserApiUpdateUrl(info)
+  if (!url) throw new Error(global.i18n.t('user_api_update_no_url_tip'))
+  const urls = options.originOnly ? [url] : buildUserApiScriptUrls(url)
+  const result = await fetchUserApiScriptByUrls(urls, url, options)
+  let update = createUpdateInfo(info, result.script, result.url)
+  // 镜像命中但无更新时，用原地址复核一次（CDN 可能存在缓存）
+  if (!update && result.url != url) {
+    try {
+      const script = await fetchScriptFromUrl(url, USER_API_FETCH_VERIFY_TIMEOUT)
+      update = createUpdateInfo(info, script, url)
+    } catch (err: any) {
+      log.warn(`verify user api ${info.name} update from origin failed: ${err.message}`)
+    }
+  }
+  return update
 }
 
 export interface UserApiUpdateCheckResult {

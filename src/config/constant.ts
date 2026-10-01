@@ -132,6 +132,32 @@ export const USER_API_SOURCE_FILE_EXT_RXP = ['js']
 export const USER_API_MAX_COUNT = 20
 /** 自定义源脚本最大体积 */
 export const USER_API_MAX_SCRIPT_SIZE = 9_000_000
+/** 单个地址下载超时 */
+export const USER_API_FETCH_TIMEOUT = 10_000
+/** 复核原地址（确认非镜像缓存）超时 */
+export const USER_API_FETCH_VERIFY_TIMEOUT = 6_000
+/**
+ * 自定义源脚本下载镜像（按顺序逐级尝试，失败自动降级到下一个）
+ * 仅对 github 仓库文件地址（raw.githubusercontent.com、github.com/.../raw/...）生效
+ * {path} 形如 owner/repo@ref/dir/file.js
+ */
+export const USER_API_SCRIPT_MIRRORS = [
+  'https://cdn.jsdelivr.net/gh/{path}', // jsDelivr 主节点（国内可用）
+  'https://fastly.jsdelivr.net/gh/{path}', // jsDelivr Fastly 节点
+  'https://gcore.jsdelivr.net/gh/{path}', // jsDelivr GCore 节点（国内可用）
+  'https://jsd.onmicrosoft.cn/gh/{path}', // jsDelivr 国内节点
+  'https://cdn.statically.io/gh/{path}', // Statically 国内可用
+] as const
+/**
+ * 自定义源脚本下载代理镜像（按顺序逐级尝试，失败自动降级到下一个）
+ * 适用于任意 https 地址（含 github release 下载地址）
+ * {url} 为原始地址
+ */
+export const USER_API_SCRIPT_PROXY_MIRRORS = [
+  'https://gh-proxy.com/{url}',
+  'https://ghproxy.net/{url}',
+  'https://hub.gitmirror.com/{url}',
+] as const
 
 export const MUSIC_TOGGLE_MODE = {
   listLoop: 'listLoop', // 列表循环
