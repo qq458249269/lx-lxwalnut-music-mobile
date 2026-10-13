@@ -86,10 +86,21 @@ jobs:
             echo "version.json updated to ${NEXT_VERSION}"
           fi
 
+# 内存不足时 OOM killer 会杀掉 Gradle 守护进程，报 "daemon disappeared unexpectedly"
+      - name: Ensure swap
+        shell: bash
+        run: |
+          if ! swapon --show | grep -q .; then
+            sudo fallocate -l 8G /swapfile && sudo chmod 600 /swapfile
+            sudo mkswap /swapfile && sudo swapon /swapfile
+          fi
+          free -h
+
       - name: Build Packages
         env:
           DISABLE_SVG: 1
           PACKAGE_VERSION: ${{ steps.resolve.outputs.next_version }}
+          NODE_OPTIONS: --max-old-space-size=3072
         shell: bash
         run: |
           cd android
