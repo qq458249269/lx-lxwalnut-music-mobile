@@ -195,6 +195,11 @@ const getMusicPlayUrl = async (
     })
 }
 
+const handlePlayFail = (message?: string) => {
+  setStatusText(message || global.i18n.t('player__error'))
+  global.app_event.error()
+}
+
 export const setMusicUrl = (
   musicInfo: LX.Music.MusicInfo | LX.Download.ListItem,
   isRefresh?: boolean
@@ -205,7 +210,12 @@ export const setMusicUrl = (
   global.lx.gettingUrlId = createGettingUrlId(musicInfo)
   void getMusicPlayUrl(musicInfo, isRefresh)
     .then((url) => {
-      if (!url) return
+      // ponytail: 换源/请求全部失败会返回 null，原先静默卡住不播下一首，这里统一走错误流程
+      if (!url) {
+        if (global.lx.isPlayedStop || musicInfo.id !== playerState.playMusicInfo.musicInfo?.id) return
+        handlePlayFail()
+        return
+      }
       // 在调用 setResource 之前清除 gettingUrlId 和状态文本
       // 这样播放器状态事件才能被正确处理
       const currentMusicInfo = playerState.playMusicInfo.musicInfo
@@ -227,11 +237,9 @@ export const setMusicUrl = (
         }
       }
     })
-    .catch((err: any) => {
+.catch((err: any) => {
       console.log(err)
-      setStatusText(err.message as string)
-      global.app_event.error()
-      // addDelayNextTimeout()
+      handlePlayFail(err.message as string)
     })
     .finally(() => {
       // 确保在异常情况下也能清除 gettingUrlId

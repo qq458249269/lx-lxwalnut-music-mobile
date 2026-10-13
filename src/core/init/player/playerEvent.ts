@@ -9,6 +9,9 @@ import { updateScrobbleInfo } from '@/core/player/scrobble' // [修改] 从新�
 
 export default () => {
   let retryNum = 0
+  // ponytail: 连续多首都无法播放时停止，避免整个列表不可播放时无限跳歌（上限 5 首）
+  let failCount = 0
+  const MAX_FAIL_COUNT = 5
   let prevTimeoutId: string | null = null
   let loadingTimeout: number | null = null
   let delayNextTimeout: number | null = null
@@ -75,6 +78,7 @@ export default () => {
   const handlePlaying = () => {
     setStatusText('')
     clearLoadingTimeout()
+    failCount = 0
   }
 
   const handleEmpied = () => {
@@ -111,6 +115,7 @@ export default () => {
 
     // 设置错误状态文本，并自动播放下一首（URL 过期/失败重试耗尽后）
     setStatusText(global.i18n.t('player__error'))
+    if (++failCount > MAX_FAIL_COUNT) return
     if (isActive()) {
       setTimeout(addDelayNextTimeout) // 5 秒后播下一首
     } else {

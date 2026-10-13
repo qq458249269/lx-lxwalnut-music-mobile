@@ -14,8 +14,8 @@ const resetPreloadInfo = () => {
   preloadMusicInfo.info = null
   preloadMusicInfo.isLoading = false
 }
-const preloadNextMusicUrl = async (curTime: number) => {
-  if (preloadMusicInfo.isLoading || curTime - preloadMusicInfo.preProgress < 3) return
+const preloadNextMusicUrl = async (curTime: number, force = false) => {
+  if (preloadMusicInfo.isLoading || (!force && curTime - preloadMusicInfo.preProgress < 3)) return
   preloadMusicInfo.isLoading = true
   console.log('preload next music url')
   const info = await getNextPlayMusicInfo()
@@ -59,6 +59,12 @@ export default () => {
     preloadMusicInfo.preProgress = playerState.progress.nowPlayTime
   }
 
+  const handlePlaying = () => {
+    // 当前歌曲开始播放即预加载下一首，不必等最后 10 秒
+    if (!playerState.musicInfo.id || preloadMusicInfo.info) return
+    void preloadNextMusicUrl(playerState.progress.nowPlayTime, true)
+  }
+
   const handlePlayProgressChanged: typeof global.state_event.playProgressChanged = (progress) => {
     const duration = progress.maxPlayTime
     if (duration > 10 && duration - progress.nowPlayTime < 10 && !preloadMusicInfo.info) {
@@ -68,6 +74,7 @@ export default () => {
 
   global.app_event.on('setProgress', setProgress)
   global.app_event.on('musicToggled', handleSetPlayInfo)
+  global.app_event.on('playerPlaying', handlePlaying)
   global.state_event.on('configUpdated', handleConfigUpdated)
   global.state_event.on('playProgressChanged', handlePlayProgressChanged)
 }
