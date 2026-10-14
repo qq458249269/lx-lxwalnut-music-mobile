@@ -1,5 +1,5 @@
 import { getMusicUrl } from '@/core/music'
-import { getNextPlayMusicInfo, resetRandomNextMusicInfo } from '@/core/player/player'
+import { LOWEST_QUALITY, getNextPlayMusicInfo, resetRandomNextMusicInfo } from '@/core/player/player'
 import { checkUrl } from '@/utils/request'
 import playerState from '@/store/player/state'
 import { isCached } from '@/plugins/player/utils'
@@ -21,7 +21,10 @@ const preloadNextMusicUrl = async (curTime: number, force = false) => {
   const info = await getNextPlayMusicInfo()
   if (info) {
     preloadMusicInfo.info = info
-    const url = await getMusicUrl({ musicInfo: info.musicInfo }).catch(() => '')
+    // 与播放侧同一策略：首选音质失败就降 128k 预热，让下一首开唱时直接命中缓存
+    const url =
+      (await getMusicUrl({ musicInfo: info.musicInfo }).catch(() => '')) ||
+      (await getMusicUrl({ musicInfo: info.musicInfo, quality: LOWEST_QUALITY }).catch(() => ''))
     if (url) {
       console.log('preload url', url)
       const [cached, available] = await Promise.all([

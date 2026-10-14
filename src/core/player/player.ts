@@ -79,16 +79,19 @@ const diffCurrentMusicInfo = (curMusicInfo: LX.Music.MusicInfo | LX.Download.Lis
 }
 
 let cancelDelayRetry: (() => void) | null = null
+// ponytail: 优先保证出声——首选音质整条链路都失败时降到 128k 再试一次
+export const LOWEST_QUALITY: LX.Quality = '128k'
 const delayRetry = async (
   musicInfo: LX.Music.MusicInfo | LX.Download.ListItem,
-  isRefresh = false
+  isRefresh = false,
+  quality?: LX.Quality
 ): Promise<string | null> => {
   // if (cancelDelayRetry) cancelDelayRetry()
   return new Promise<string | null>((resolve, reject) => {
     const time = getRandom(2, 6)
     setStatusText(global.i18n.t('player__getting_url_delay_retry', { time }))
     const tiemout = setTimeout(() => {
-      getMusicPlayUrl(musicInfo, isRefresh, true)
+      getMusicPlayUrl(musicInfo, isRefresh, true, quality)
         .then((result) => {
           cancelDelayRetry = null
           resolve(result)
@@ -108,7 +111,8 @@ const delayRetry = async (
 const getMusicPlayUrl = async (
   musicInfo: LX.Music.MusicInfo | LX.Download.ListItem,
   isRefresh = false,
-  isRetryed = false
+  isRetryed = false,
+  quality?: LX.Quality
 ): Promise<string | null> => {
   // this.musicInfo.url = await getMusicPlayUrl(targetSong, type)
   setStatusText(global.i18n.t('player__getting_url'))
@@ -159,14 +163,16 @@ const getMusicPlayUrl = async (
       ? getMusicUrl({
           musicInfo: toggleMusicInfo,
           isRefresh,
+          quality,
           allowToggleSource: false,
         })
       : Promise.reject(new Error('not found'))
-  )
+    )
     .catch(async () => {
       return getMusicUrl({
         musicInfo,
         isRefresh,
+        quality,
         onToggleSource(mInfo) {
           if (diffCurrentMusicInfo(musicInfo)) return
           setStatusText(global.i18n.t('toggle_source_try'))
@@ -187,9 +193,10 @@ const getMusicPlayUrl = async (
       )
         return null
 
-      if (err.message == requestMsg.tooManyRequests) return delayRetry(musicInfo, isRefresh)
+      if (err.message == requestMsg.tooManyRequests) return delayRetry(musicInfo, isRefresh, quality)
 
-      if (!isRetryed) return getMusicPlayUrl(musicInfo, isRefresh, true)
+      // 整条链路（含换源）都失败时降音质再试一次，仍失败才交给上层跳下一首
+      if (!isRetryed) return getMusicPlayUrl(musicInfo, isRefresh, true, quality ?? LOWEST_QUALITY)
 
       throw err
     })
@@ -198,6 +205,9 @@ const getMusicPlayUrl = async (
 const handlePlayFail = (message?: string) => {
   setStatusText(message || global.i18n.t('player__error'))
   global.app_event.error()
+  // ponytail: error 事件只置暂停态，「重试 URL → 自动下一首」只挂在 playerError 上，
+  // 换源失败/取链失败必须补发 playerError，否则一直停在当前曲（对齐原生 PlaybackError 的处理）
+  global.app_event.playerError()
 }
 
 export const setMusicUrl = (
