@@ -5,6 +5,7 @@ const pkg = require(pkgDir)
 const version = require('../version.json')
 const chalk = require('chalk')
 const { computeNextVersionLocal, todayVersion } = require('./bump-version.cjs')
+const { changelogFromGit } = require('./changelog.cjs')
 const pkg_bak = JSON.stringify(pkg, null, 2)
 const version_bak = JSON.stringify(version, null, 2)
 const parseChangelog = require('changelog-parser')
@@ -17,6 +18,8 @@ const getPrevVer = () =>
   })
 
 const updateChangeLog = async (newVerNum, newChangeLog) => {
+  // ponytail: 根目录 CHANGELOG.md 未纳入版本库，没有就不写（version.json.history 才是记录）
+  if (!fs.existsSync(changelogPath)) return
   let changeLog = fs.readFileSync(changelogPath, 'utf-8')
   const prevVer = await getPrevVer()
   const log = `## [${newVerNum}](${pkg.repository.url.replace(/^git\+(http.+)\.git$/, '$1')}/compare/v${prevVer}...v${newVerNum}) - ${formatTime()}\n\n${newChangeLog}`
@@ -28,7 +31,8 @@ module.exports = async (newVerNum) => {
     let { pkgVersion, version } = require('../version.json')
     newVerNum = computeNextVersionLocal(pkg?.version || pkgVersion, todayVersion())
   }
-  const newMDChangeLog = fs.readFileSync(jp('../changeLog.md'), 'utf-8')
+// 更新日志统一由最近 10 次提交生成；生成失败沿用上一版说明，避免窗口空白
+  const newMDChangeLog = changelogFromGit(10, jp('../../')) || version.desc
   version.history.unshift({
     version: version.version,
     desc: version.desc,
