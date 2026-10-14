@@ -3,6 +3,7 @@ import { name, repository } from '../../package.json'
 import { downloadFile, stopDownload, temporaryDirectoryPath } from '@/utils/fs'
 import { getSupportedAbis, installApk } from '@/utils/nativeModules/utils'
 import { APP_PROVIDER_NAME } from '@/config/constant'
+import { log } from '@/utils/log'
 
 // 仓库地址唯一来源：package.json 的 repository.url（git+https://github.com/OWNER/REPO.git）
 const [, owner, repo] = (repository.url.match(/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?\/?$/) || []) || []
@@ -112,37 +113,42 @@ let downloadJobId = null
 const noop = (total, download) => {}
 let apkSavePath
 
+// APK 体积大（几十 MB），github.com 直连国内极慢/卡死：依次走国内加速前缀，末位空串为直连兜底。
+// 镜像挂了就换下一个，不影响最终结果。
+const downloadMirrors = ['https://ghfast.top/', 'https://ghproxy.net/', 'https://gh-proxy.com/', '']
+
 export const downloadNewVersion = async (version, onDownload = noop) => {
   const abi = await getTargetAbi()
   const url = `https://github.com/${owner}/${repo}/releases/download/v${version}/${name}-v${version}-${abi}.apk`
-  let savePath = temporaryDirectoryPath + '/lx-netease-music-mobile.apk'
+const savePath = temporaryDirectoryPath + '/lx-netease-music-mobile.apk'
 
-  if (downloadJobId) stopDownload(downloadJobId)
+  for (let i = 0; i < downloadMirrors.length; i++) {
+    try {
+      if (downloadJobId) stopDownload(downloadJobId)
 
-  const { jobId, promise } = downloadFile(url, savePath, {
-    progressInterval: 500,
-    connectionTimeout: 20000,
-    readTimeout: 30000,
-    begin({ statusCode, contentLength }) {
-      onDownload(contentLength, 0)
-      // switch (statusCode) {
-      //   case 200:
-      //   case 206:
-      //     break
-      //   default:
-      //     onDownload(null, contentLength, 0)
-      //     break
-      // }
-    },
-    progress({ contentLength, bytesWritten }) {
-      onDownload(contentLength, bytesWritten)
-    },
-  })
-  downloadJobId = jobId
-  return promise.then(() => {
-    apkSavePath = savePath
-    return updateApp()
-  })
+      const { jobId, promise } = downloadFile(downloadMirrors[i] + url, savePath, {
+        progressInterval: 500,
+        connectionTimeout: 20000,
+        readTimeout: 30000,
+        begin({ contentLength }) {
+          onDownload(contentLength, 0)
+        },
+        progress({ contentLength, bytesWritten }) {
+          onDownload(contentLength, bytesWritten)
+        },
+      })
+downloadJobId = jobId
+      const res = await promise
+      // ponytail: 部分镜像挂掉时会返回 200 + HTML 错误页或截断文件，装前先卡一道（真实包几十 MB）
+      if ((res.statusCode != null && (res.statusCode < 200 || res.statusCode >= 300)) || res.bytesWritten < 1024 * 1024)
+        throw new Error(`bad response: status=${res.statusCode} size=${res.bytesWritten}`)
+      apkSavePath = savePath
+      return await updateApp()
+    } catch (err) {
+      log.warn(`下载更新包失败（${downloadMirrors[i] || '直连'}）：${err?.message ?? err}`)
+    }
+  }
+  throw new Error('all download mirrors failed')
 }
 
 export const updateApp = async () => {
